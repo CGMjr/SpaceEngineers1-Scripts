@@ -1,2 +1,18 @@
-# SpaceEngineers1-Scripts
-A place to store and maintain scripts for Space Engineers 1
+## StationCargoController
+
+Automated loading and unloading station controller for Space Engineers Version 1.
+
+Features:
+
+* Automatic connector locking
+* Automatic disconnect on configurable thresholds
+* Load and unload modes
+* Startup recovery
+* Dock-clear latch protection
+
+Location:
+
+```text
+StationCargoController/
+```
+
