@@ -21,6 +21,36 @@ The automation resides entirely on the **station**, not on the transport ship ("
 * Configuration via PB Custom Data.
 
 ---
+### Space Engineers In-Game PB Compatibility Notes
+Discovery
+
+Testing revealed that the Space Engineers in-game PB compiler does not accept source files in Visual Studio / MDK format.
+
+The PB compiler automatically supplies the Program class context.
+
+Repository Form
+
+May contain:
+
+using ...
+public sealed class Program : MyGridProgram
+{
+}
+In-Game PB Form
+
+Must contain only:
+
+public Program()
+{
+}
+
+public void Main(string argument)
+{
+}
+
+plus helper methods and fields.
+
+No explicit Program class declaration.
 
 # System Architecture
 
