@@ -1,18 +1,40 @@
 #Introduction
-This is a record of in-game test results for StationCargoController code. The format is:
-Test Short Name
-Date tested
-Game version
-What was tested
-Pass/fail results
-Screenshots (if desired)
-Follow-up issues
+This is a record of in-game test results for StationCargoController code. 
 #Test Results
-Test Short Name: Check compile of version 1 Program.cs
-Date tested: 7/16/2026
-Game version: 1.209.024
-What was tested: does the code compile.
-Pass/fail results: fail. Version 1 code was generated for: MDK-SE projects, Visual Studio projects, Standalone .cs
-Screenshots (if desired): none
-Follow-up issues:none
+## Session 001
 
+Date: 7/16/2026
+Game version: 1.209.024
+
+### Compilation
+- Script did not compile.
+### Notes
+Version 1 code was generated for: MDK-SE projects, Visual Studio projects, Standalone .cs
+
+## Session 002
+
+Date: 7/16/2026
+Game version: 1.209.024
+
+### Compilation
+- StationCargoController v1.0.1
+  - PASS
+### Runtime Validation
+- Custom Data Parsing
+  - PASS
+- Connector Discovery
+  - PASS
+- Auto Connect
+  - PASS
+- OtherConnector
+  - PASS
+- Connected Grid Discovery
+  - PASS
+- Cargo Container Discovery
+  - PASS
+- Volume Fill Calculation
+  - PASS
+### Notes
+Station successfully connected an unconnected gooseEgg.
+Reported fill percentage matched the actual container fill level.
+Confirmed that the station can discover and inspect inventories on the connected gooseEgg grid.
