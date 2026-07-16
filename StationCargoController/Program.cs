@@ -1,294 +1,368 @@
 /*
- * StationCargoController
+ * StationCargoController v1.0.1
  *
- * Version: 1.0
+ * Space Engineers Version 1
+ * In-Game Programmable Block Edition
  *
  * Purpose:
- * Automatically manage loading and unloading stations for gooseEgg cargo
- * containers.
+ * Automate loading and unloading stations for detachable
+ * gooseEgg cargo containers.
  *
- * Features:
- * - Auto-connect when connector becomes Connectable.
- * - Monitor fill percentage of connected gooseEgg.
- * - Load mode (disconnect when fill >= threshold).
- * - Unload mode (disconnect when fill <= threshold).
+ * Design Highlights:
+ * - Single managed connector.
+ * - Exact connector name matching.
+ * - Same-construct connector discovery.
+ * - Load and unload modes.
+ * - Volume-based fill percentage.
  * - Configurable disconnect delay.
- * - Prevent reconnect loops via state machine latch.
- * - Automatic recovery after world reload.
+ * - Startup recovery.
+ * - WaitingForContainerRemoval latch state.
  */
 
-using Sandbox.ModAPI.Ingame;
-using SpaceEngineers.Game.ModAPI.Ingame;
-using System;
-using System.Collections.Generic;
-using VRage.Game.ModAPI.Ingame;
-
-public sealed class Program : MyGridProgram
+enum StationState
 {
-    private enum StationState
+    WaitingForContainer,
+    Processing,
+    DisconnectPending,
+    WaitingForContainerRemoval,
+    Error
+}
+
+StationState _state = StationState.WaitingForContainer;
+
+IMyShipConnector _stationConnector;
+
+string _mode = "Load";
+string _connectorName = "Cnx";
+
+double _threshold = 95.0;
+double _disconnectDelaySeconds = 10.0;
+
+double _disconnectTimerSeconds = 0.0;
+
+public Program()
+{
+    Runtime.UpdateFrequency = UpdateFrequency.Update100;
+
+    LoadConfiguration();
+
+    if (!TryFindManagedConnector())
     {
-        WaitingForContainer,
-        Processing,
-        DisconnectPending,
-        WaitingForContainerRemoval,
-        Error
+        _state = StationState.Error;
+        return;
     }
 
-    private const string SectionName = "[Station]";
+    RecoverState();
+}
 
-    private StationState _state = StationState.WaitingForContainer;
-
-    private IMyShipConnector _stationConnector;
-
-    private string _mode = "Load";
-    private string _connectorName = "Cnx";
-    private double _threshold = 95.0;
-    private double _disconnectDelaySeconds = 10.0;
-
-    private double _disconnectTimerSeconds;
-
-    public Program()
+public void Main(string argument, UpdateType updateSource)
+{
+    if (_state == StationState.Error)
     {
-        Runtime.UpdateFrequency = UpdateFrequency.Update100;
-
-        LoadConfiguration();
-
-        if (!TryFindConnector())
-        {
-            _state = StationState.Error;
-            return;
-        }
-
-        RecoverState();
+        Echo("ERROR");
+        Echo("Check connector configuration.");
+        return;
     }
 
-    public void Main(string argument, UpdateType updateSource)
+    if (!TryFindManagedConnector())
     {
-        if (_state == StationState.Error)
-        {
-            Echo("ERROR");
-            return;
-        }
-
-        if (!TryFindConnector())
-        {
-            Echo("Managed connector not found.");
-            _state = StationState.Error;
-            return;
-        }
-
-        Echo($"State: {_state}");
-        Echo($"Mode : {_mode}");
-        Echo($"Threshold : {_threshold:F1}%");
-
-        switch (_state)
-        {
-            case StationState.WaitingForContainer:
-                ProcessWaitingForContainer();
-                break;
-
-            case StationState.Processing:
-                ProcessConnectedContainer();
-                break;
-
-            case StationState.DisconnectPending:
-                ProcessDisconnectPending();
-                break;
-
-            case StationState.WaitingForContainerRemoval:
-                ProcessWaitingForRemoval();
-                break;
-        }
+        _state = StationState.Error;
+        Echo("Managed connector not found.");
+        return;
     }
 
-    private void ProcessWaitingForContainer()
+    Echo("=== StationCargoController ===");
+    Echo("State: " + _state);
+    Echo("Mode: " + _mode);
+    Echo("Threshold: " + _threshold.ToString("F1") + "%");
+
+    switch (_state)
     {
-        if (_stationConnector.Status == MyShipConnectorStatus.Connectable)
-        {
-            Echo("Connectable container detected.");
+        case StationState.WaitingForContainer:
+            ProcessWaitingForContainer();
+            break;
 
-            _stationConnector.Connect();
+        case StationState.Processing:
+            ProcessProcessing();
+            break;
 
-            if (_stationConnector.Status == MyShipConnectorStatus.Connected)
-            {
-                Echo("Connected.");
-                _state = StationState.Processing;
-            }
-        }
+        case StationState.DisconnectPending:
+            ProcessDisconnectPending();
+            break;
+
+        case StationState.WaitingForContainerRemoval:
+            ProcessWaitingForContainerRemoval();
+            break;
+    }
+}
+
+void ProcessWaitingForContainer()
+{
+    if (_stationConnector.Status != MyShipConnectorStatus.Connectable)
+        return;
+
+    Echo("Container detected.");
+    Echo("Attempting connection...");
+
+    _stationConnector.Connect();
+
+    if (_stationConnector.Status ==
+        MyShipConnectorStatus.Connected)
+    {
+        Echo("Connected.");
+        _state = StationState.Processing;
+    }
+}
+
+void ProcessProcessing()
+{
+    if (_stationConnector.Status !=
+        MyShipConnectorStatus.Connected)
+    {
+        Echo("Connection lost.");
+
+        _state = StationState.WaitingForContainer;
+        return;
     }
 
-    private void ProcessConnectedContainer()
+    double fillPercent =
+        GetConnectedGridFillPercentage();
+
+    Echo("Fill: " + fillPercent.ToString("F2") + "%");
+
+    bool complete = false;
+
+    if (_mode.Equals("Load"))
     {
-        if (_stationConnector.Status != MyShipConnectorStatus.Connected)
-        {
-            Echo("Connection lost.");
+        complete = fillPercent >= _threshold;
+    }
+    else if (_mode.Equals("Unload"))
+    {
+        complete = fillPercent <= _threshold;
+    }
+
+    if (!complete)
+        return;
+
+    Echo("Threshold reached.");
+
+    _disconnectTimerSeconds = 0.0;
+
+    _state = StationState.DisconnectPending;
+}
+
+void ProcessDisconnectPending()
+{
+    _disconnectTimerSeconds +=
+        Runtime.TimeSinceLastRun.TotalSeconds;
+
+    double remaining =
+        _disconnectDelaySeconds -
+        _disconnectTimerSeconds;
+
+    if (remaining < 0)
+        remaining = 0;
+
+    Echo("Disconnect in "
+        + remaining.ToString("F1")
+        + "s");
+
+    if (_disconnectTimerSeconds <
+        _disconnectDelaySeconds)
+        return;
+
+    Echo("Disconnecting...");
+
+    _stationConnector.Disconnect();
+
+    _state =
+        StationState.WaitingForContainerRemoval;
+}
+
+void ProcessWaitingForContainerRemoval()
+{
+    Echo("Waiting for dock to clear.");
+
+    /*
+     * Critical Design Requirement:
+     *
+     * After processing a container,
+     * do not reconnect until the dock
+     * becomes completely clear.
+     *
+     * This prevents endless:
+     *
+     * Connect
+     * -> Process
+     * -> Disconnect
+     * -> Connect
+     * -> Process
+     *
+     * loops.
+     */
+
+    if (_stationConnector.Status ==
+        MyShipConnectorStatus.Unconnected)
+    {
+        Echo("Dock clear.");
+
+        _state =
+            StationState.WaitingForContainer;
+    }
+}
+
+bool TryFindManagedConnector()
+{
+    var connectors =
+        new List<IMyShipConnector>();
+
+    GridTerminalSystem.GetBlocksOfType(
+        connectors,
+        block =>
+            block.IsSameConstructAs(Me)
+            &&
+            block.CustomName == _connectorName);
+
+    if (connectors.Count == 1)
+    {
+        _stationConnector = connectors[0];
+        return true;
+    }
+
+    if (connectors.Count == 0)
+    {
+        Echo("ERROR");
+        Echo("Connector not found:");
+        Echo(_connectorName);
+    }
+    else
+    {
+        Echo("ERROR");
+        Echo("Multiple connectors named:");
+        Echo(_connectorName);
+    }
+
+    return false;
+}
+
+void RecoverState()
+{
+    if (_stationConnector == null)
+        return;
+
+    switch (_stationConnector.Status)
+    {
+        case MyShipConnectorStatus.Connected:
+            _state = StationState.Processing;
+            break;
+
+        case MyShipConnectorStatus.Connectable:
             _state = StationState.WaitingForContainer;
-            return;
-        }
+            break;
 
-        double fillPercent = GetConnectedGridFillPercentage();
-
-        Echo($"Fill: {fillPercent:F2}%");
-
-        bool complete =
-            (_mode.Equals("Load", StringComparison.OrdinalIgnoreCase)
-                && fillPercent >= _threshold)
-            ||
-            (_mode.Equals("Unload", StringComparison.OrdinalIgnoreCase)
-                && fillPercent <= _threshold);
-
-        if (!complete)
-            return;
-
-        Echo("Threshold reached.");
-
-        _disconnectTimerSeconds = 0.0;
-        _state = StationState.DisconnectPending;
-    }
-
-    private void ProcessDisconnectPending()
-    {
-        _disconnectTimerSeconds += Runtime.TimeSinceLastRun.TotalSeconds;
-
-        Echo(
-            $"Disconnect in {Math.Max(0.0, _disconnectDelaySeconds - _disconnectTimerSeconds):F1}s");
-
-        if (_disconnectTimerSeconds < _disconnectDelaySeconds)
-            return;
-
-        _stationConnector.Disconnect();
-
-        Echo("Disconnected.");
-
-        _state = StationState.WaitingForContainerRemoval;
-    }
-
-    private void ProcessWaitingForRemoval()
-    {
-        Echo("Waiting for dock to clear.");
-
-        /*
-         * Design Decision:
-         *
-         * The connector must transition to Unconnected before
-         * the station is allowed to process another container.
-         *
-         * This prevents reconnect loops when a completed
-         * gooseEgg remains physically sitting on the dock.
-         */
-        if (_stationConnector.Status == MyShipConnectorStatus.Unconnected)
-        {
-            Echo("Dock clear.");
-
+        default:
             _state = StationState.WaitingForContainer;
-        }
+            break;
+    }
+}
+
+double GetConnectedGridFillPercentage()
+{
+    if (_stationConnector == null)
+        return 0.0;
+
+    if (_stationConnector.OtherConnector == null)
+        return 0.0;
+
+    var connectedGrid =
+        _stationConnector.OtherConnector.CubeGrid;
+
+    var cargoContainers =
+        new List<IMyCargoContainer>();
+
+    GridTerminalSystem.GetBlocksOfType(
+        cargoContainers,
+        block => block.CubeGrid == connectedGrid);
+
+    if (cargoContainers.Count == 0)
+    {
+        Echo("No cargo containers found.");
+        return 0.0;
     }
 
-    private bool TryFindConnector()
-    {
-        _stationConnector =
-            GridTerminalSystem.GetBlockWithName(_connectorName)
-            as IMyShipConnector;
+    double currentVolume = 0.0;
+    double maxVolume = 0.0;
 
-        return _stationConnector != null;
+    foreach (var container in cargoContainers)
+    {
+        var inventory =
+            container.GetInventory();
+
+        currentVolume +=
+            (double)inventory.CurrentVolume;
+
+        maxVolume +=
+            (double)inventory.MaxVolume;
     }
 
-    private void RecoverState()
-    {
-        if (_stationConnector == null)
-            return;
+    if (maxVolume <= 0.0)
+        return 0.0;
 
-        switch (_stationConnector.Status)
+    return
+        (currentVolume / maxVolume) * 100.0;
+}
+
+void LoadConfiguration()
+{
+    string customData =
+        Me.CustomData ?? "";
+
+    string[] lines =
+        customData.Split('\n');
+
+    foreach (string rawLine in lines)
+    {
+        string line =
+            rawLine.Trim();
+
+        if (line.Length == 0)
+            continue;
+
+        if (line.StartsWith("["))
+            continue;
+
+        if (line.StartsWith("Mode="))
         {
-            case MyShipConnectorStatus.Connected:
-                _state = StationState.Processing;
-                break;
-
-            case MyShipConnectorStatus.Connectable:
-                _state = StationState.WaitingForContainer;
-                break;
-
-            default:
-                _state = StationState.WaitingForContainer;
-                break;
+            _mode =
+                line.Substring(5).Trim();
         }
-    }
-
-    private double GetConnectedGridFillPercentage()
-    {
-        if (_stationConnector.OtherConnector == null)
-            return 0.0;
-
-        var connectedGrid = _stationConnector.OtherConnector.CubeGrid;
-
-        var cargoContainers = new List<IMyCargoContainer>();
-
-        GridTerminalSystem.GetBlocksOfType(
-            cargoContainers,
-            block => block.CubeGrid == connectedGrid);
-
-        if (cargoContainers.Count == 0)
-            return 0.0;
-
-        double currentVolume = 0.0;
-        double maxVolume = 0.0;
-
-        foreach (var container in cargoContainers)
+        else if (line.StartsWith("Threshold="))
         {
-            var inventory = container.GetInventory();
-
-            currentVolume += (double)inventory.CurrentVolume;
-            maxVolume += (double)inventory.MaxVolume;
+            double.TryParse(
+                line.Substring(10),
+                out _threshold);
         }
-
-        if (maxVolume <= 0.0)
-            return 0.0;
-
-        return (currentVolume / maxVolume) * 100.0;
-    }
-
-    private void LoadConfiguration()
-    {
-        string customData = Me.CustomData ?? string.Empty;
-
-        var lines = customData.Split(
-            new[] { '\r', '\n' },
-            StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (string rawLine in lines)
+        else if (line.StartsWith(
+            "DisconnectDelaySeconds="))
         {
-            string line = rawLine.Trim();
-
-            if (line.StartsWith("Mode="))
-            {
-                _mode = line.Substring("Mode=".Length).Trim();
-            }
-            else if (line.StartsWith("Threshold="))
-            {
-                double.TryParse(
-                    line.Substring("Threshold=".Length),
-                    out _threshold);
-            }
-            else if (line.StartsWith("DisconnectDelaySeconds="))
-            {
-                double.TryParse(
-                    line.Substring("DisconnectDelaySeconds=".Length),
-                    out _disconnectDelaySeconds);
-            }
-            else if (line.StartsWith("ConnectorName="))
-            {
-                _connectorName =
-                    line.Substring("ConnectorName=".Length).Trim();
-            }
+            double.TryParse(
+                line.Substring(23),
+                out _disconnectDelaySeconds);
         }
-
-        if (_threshold < 0)
-            _threshold = 0;
-
-        if (_threshold > 100)
-            _threshold = 100;
-
-        if (_disconnectDelaySeconds < 0)
-            _disconnectDelaySeconds = 0;
+        else if (line.StartsWith(
+            "ConnectorName="))
+        {
+            _connectorName =
+                line.Substring(14).Trim();
+        }
     }
+
+    if (_threshold < 0)
+        _threshold = 0;
+
+    if (_threshold > 100)
+        _threshold = 100;
+
+    if (_disconnectDelaySeconds < 0)
+        _disconnectDelaySeconds = 0;
 }
