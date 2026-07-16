@@ -85,3 +85,24 @@ Potential future investigation areas:
 * LCD dashboards
 
 * Fleet management
+
+## 2025-07 Development Notes
+
+### PB Compiler Discovery
+
+The in-game PB compiler rejected Program.cs files that included:
+
+- using statements
+- explicit Program class declarations
+
+A PB-native implementation format is required.
+
+### Connector Discovery Change
+
+Connector discovery was revised to:
+
+- Search only the PB's construct.
+- Require exactly one matching connector.
+- Enter Error state if zero or multiple matches are found.
+
+This prevents accidental operation on the wrong dock.
