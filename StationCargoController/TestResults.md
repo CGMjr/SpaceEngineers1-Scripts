@@ -80,8 +80,35 @@ Results
 - Connector disconnect: PASS
 - WaitingForContainerRemoval latch: PASS
 
-Observations
+## Session 005
+Date: 7/17/2026
+Game version: 1.209.024
 
-The station did not reconnect to the completed gooseEgg while it remained on the connector.
+### Unload Script Happy Path Tests
 
-The anti-loop state machine behaved exactly as designed.
+- The unload platform is complete. The latest version of the script, v1.0.6, was loaded into the PB. The INI entries were loaded and adjusted in the PB's Custom Data field. The INI entries were:
+    [Station]
+    Mode=Unload
+    Threshold=5
+    DisconnectDelaySeconds=10
+    ConnectorName=goosePad-Cnx
+- The unload platform's connector was renamed to goosePad-Cnx to match the INI entry.
+
+Tests performed:
+
+- Place a gooseEgg container on the unload platform. Confirm White-yellow-green ring state.
+- Confirm Latch state of unload platform.
+- Confirm correct gooosEgg fill percentage is calculated.
+- Confirm inventories for gooseEgg and unload station are visible.
+- Manually move inventory to attain <Threshold% in gooseEgg. Confirm Disconnect processing.
+- Confirm Waiting for removal processing.
+- Confirm Waiting for Container processing.
+
+Result:
+- Script behaved as expected, including locking the connectors and computing the correct fill percentage.
+- After manually moving inventory, the script executed the disconnect and waiting for removal code.
+- After gooseEgg was removed from the unload platform, the script set the correct latch state and executed the "WaitingForContainer" code.
+
+Status:
+All test PASSED.
+
