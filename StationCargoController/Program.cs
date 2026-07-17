@@ -1,5 +1,5 @@
 /*
- * StationCargoController v1.0.4
+ * StationCargoController v1.0.6
  *
  * Space Engineers Version 1
  * In-Game Programmable Block Edition
@@ -39,6 +39,8 @@ double _threshold = 95.0;
 double _disconnectDelaySeconds = 10.0;
 
 double _disconnectTimerSeconds = 0.0;
+
+double _finalFilledPercent = 0.0;
 
 public Program()
 {
@@ -140,10 +142,7 @@ void ProcessProcessing()
     {
         complete = fillPercent <= _threshold;
     }
-Echo("Fill=" + fillPercent.ToString("F2"));
-Echo("Threshold=" + _threshold.ToString("F2"));
-Echo("Mode=" + _mode);
-Echo("Complete=" + complete);
+
     if (!complete)
         return;
 
@@ -152,6 +151,8 @@ Echo("Complete=" + complete);
     _disconnectTimerSeconds = 0.0;
 
     _state = StationState.DisconnectPending;
+	
+	_finalFilledPercent = fillPercent;
 }
 
 void ProcessDisconnectPending()
@@ -185,7 +186,7 @@ void ProcessDisconnectPending()
 void ProcessWaitingForContainerRemoval()
 {
     Echo("Waiting for dock to clear.");
-
+	Echo("Final fill%: " + _finalFilledPercent.ToString("F1") + "%");
     /*
      * Critical Design Requirement:
      *
