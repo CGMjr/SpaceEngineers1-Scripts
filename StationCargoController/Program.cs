@@ -185,8 +185,8 @@ void ProcessDisconnectPending()
 
 void ProcessWaitingForContainerRemoval()
 {
-    Echo("Waiting for dock to clear.");
 	Echo("Final fill%: " + _finalFilledPercent.ToString("F1") + "%");
+	Echo("Waiting for dock to clear.");
     /*
      * Critical Design Requirement:
      *
