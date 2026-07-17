@@ -38,3 +38,23 @@ Game version: 1.209.024
 Station successfully connected an unconnected gooseEgg.
 Reported fill percentage matched the actual container fill level.
 Confirmed that the station can discover and inspect inventories on the connected gooseEgg grid.
+
+## Session 003
+Date: 7/16/2026
+Game version: 1.209.024
+
+### Fill Percentage Regression
+
+A bug was introduced while adding support for the gooseEgg connector inventory.
+
+The cargo-container volume calculations were accidentally removed and replaced with repeated connector inventory calculations.
+
+Result:
+- Fill percentage incorrectly reported 100%.
+
+Resolution:
+- Restore cargo-container calculations.
+- Add connector inventory exactly once after aggregating all cargo-container inventories.
+
+Status:
+PASS after correction.
