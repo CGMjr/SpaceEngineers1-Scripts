@@ -1,5 +1,5 @@
 /*
- * StationCargoController v1.0.1
+ * StationCargoController v1.0.2
  *
  * Space Engineers Version 1
  * In-Game Programmable Block Edition
@@ -295,14 +295,14 @@ double GetConnectedGridFillPercentage()
 
     foreach (var container in cargoContainers)
     {
-        var inventory =
-            container.GetInventory();
+		 var connectorInventory =
+			_stationConnector.OtherConnector.GetInventory();
 
-        currentVolume +=
-            (double)inventory.CurrentVolume;
+		currentVolume +=
+			(double)connectorInventory.CurrentVolume;
 
-        maxVolume +=
-            (double)inventory.MaxVolume;
+		maxVolume +=
+			(double)connectorInventory.MaxVolume;
     }
 
     if (maxVolume <= 0.0)
