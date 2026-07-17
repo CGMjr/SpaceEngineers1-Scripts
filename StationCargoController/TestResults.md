@@ -58,3 +58,30 @@ Resolution:
 
 Status:
 PASS after correction.
+
+## Session 004
+Date: 7/16/2026
+Game version: 1.209.024
+
+### Load Mode Validation
+
+Tests Performed
+
+- Fill gooseEgg above threshold.
+- Observe threshold detection.
+- Observe disconnect timer.
+- Observe connector disconnect.
+- Leave gooseEgg physically sitting on dock.
+
+Results
+
+- Threshold detection: PASS
+- Disconnect timer: PASS
+- Connector disconnect: PASS
+- WaitingForContainerRemoval latch: PASS
+
+Observations
+
+The station did not reconnect to the completed gooseEgg while it remained on the connector.
+
+The anti-loop state machine behaved exactly as designed.
