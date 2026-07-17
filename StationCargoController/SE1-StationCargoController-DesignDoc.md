@@ -1,4 +1,4 @@
-# SE1-StationCargoController Design Document (Version 1)
+# SE1-StationCargoController Design Document (Version 1.0.2)
 
 ## Project Overview
 
@@ -219,22 +219,36 @@ even if they have inventories.
 
 # Fill Percentage Calculation
 
-Use volume.
+The fill percentage shall be calculated using volume.
+
+Included inventories:
+
+- All IMyCargoContainer inventories on the connected gooseEgg grid.
+- The connected gooseEgg connector inventory.
+
+Excluded inventories:
+
+- Drills
+- Refineries
+- Assemblers
+- Cockpits
+- Any other inventory-bearing blocks
 
 Formula:
 
-```text
 Total Current Volume
 --------------------
 Total Maximum Volume
-```
 
-Result:
+Where:
 
-```text
-0.0% - 100.0%
-```
+Total Current Volume =
+    Sum(Cargo Containers Current Volume)
+    + Connector Current Volume
 
+Total Maximum Volume =
+    Sum(Cargo Containers Maximum Volume)
+    + Connector Maximum Volume
 ---
 
 # Threshold Rules
