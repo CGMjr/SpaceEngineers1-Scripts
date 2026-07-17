@@ -1,5 +1,5 @@
 /*
- * StationCargoController v1.0.2
+ * StationCargoController v1.0.3
  *
  * Space Engineers Version 1
  * In-Game Programmable Block Edition
@@ -140,7 +140,10 @@ void ProcessProcessing()
     {
         complete = fillPercent <= _threshold;
     }
-
+Echo("Fill=" + fillPercent.ToString("F2"));
+Echo("Threshold=" + _threshold.ToString("F2"));
+Echo("Mode=" + _mode);
+Echo("Complete=" + complete);
     if (!complete)
         return;
 
