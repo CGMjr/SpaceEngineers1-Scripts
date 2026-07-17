@@ -106,3 +106,16 @@ Connector discovery was revised to:
 - Enter Error state if zero or multiple matches are found.
 
 This prevents accidental operation on the wrong dock.
+
+### Fill Percentage Revision
+
+Runtime testing revealed that the gooseEgg connector contains an inventory.
+
+The original implementation only included cargo container inventories.
+
+The calculation was revised to include:
+
+- Cargo container inventories
+- Connected gooseEgg connector inventory
+
+This more accurately reflects the true fill state of the cargo container.
