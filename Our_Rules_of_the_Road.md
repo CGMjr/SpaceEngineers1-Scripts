@@ -5,162 +5,129 @@
 > commit, and every document should leave the project easier to
 > understand than we found it."*
 
-------------------------------------------------------------------------
+---
 
 # Purpose
 
-This repository exists to accomplish more than producing a working Space
-Engineers script.
+This repository exists to accomplish more than producing a working Space Engineers script.
 
 It is intended to:
 
--   Solve a practical problem.
--   Serve as an exercise in thoughtful software engineering.
--   Provide a vehicle for learning Git and GitHub.
--   Preserve engineering decisions for future reference.
--   Become an example that can be shared with and learned from by
-    others.
+- Solve a practical problem.
+- Serve as an exercise in thoughtful software engineering.
+- Provide a vehicle for learning Git and GitHub.
+- Preserve engineering decisions for future reference.
+- Become an example that can be shared with and learned from by others.
 
-------------------------------------------------------------------------
+---
 
 # Our Philosophy
 
 We value clarity over cleverness.
 
-A simple design that is easily understood is preferred over a
-sophisticated design that is difficult to maintain.
+A simple design that is easily understood is preferred over a sophisticated design that is difficult to maintain.
 
 We recognize that software is read far more often than it is written.
-Accordingly, we strive to make the repository understandable by someone
-encountering it for the first time.
 
-------------------------------------------------------------------------
+---
 
 # Project Maxims
 
-These short statements capture the culture we wish to cultivate within
-this repository.
+- **Document the set things, not speculation.**
+- **Every commit should represent one coherent idea.**
+- **Leave the repository easier to understand than you found it.**
+- **The local repository is the workshop; GitHub is the publication site.**
+- **A repository should be able to explain itself to someone who has never met its original authors.**
 
--   **Document the set things, not speculation.**
--   **Every commit should represent one coherent idea.**
--   **Leave the repository easier to understand than you found it.**
--   **The local repository is the workshop; GitHub is the publication
-    site.**
--   **A repository should be able to explain itself to someone who has
-    never met its original authors.**
-
-------------------------------------------------------------------------
+---
 
 # Design Principles
 
--   Separate concerns.
--   Favor high cohesion and loose coupling.
--   Keep business logic independent of presentation.
--   Prefer composition and clear interfaces over tightly coupled
-    implementations.
--   Build incrementally.
--   Refactor when understanding improves.
--   Preserve proven behavior while improving internal structure.
+- Separate concerns.
+- Favor high cohesion and loose coupling.
+- Keep business logic independent of presentation.
+- Build incrementally.
+- Refactor when understanding improves.
+- Preserve proven behavior while improving internal structure.
 
-------------------------------------------------------------------------
+---
 
 # Development Workflow
 
-1.  Understand the problem before writing code.
-2.  Discuss and document the design.
-3.  Create a feature branch for each significant change.
-4.  Implement in small, logical increments.
-5.  Test the implementation.
-6.  Update documentation alongside the code.
-7.  Commit each coherent idea separately.
-8.  Merge only when the feature is complete and understood.
+1. Understand the problem before writing code.
+2. Discuss and document the design.
+3. Create a branch for each significant engineering activity.
+4. Implement in logical increments.
+5. Test.
+6. Update documentation.
+7. Commit each coherent idea separately.
+8. Merge only when complete.
 
-------------------------------------------------------------------------
+---
 
 # Documentation Principles
 
-We document **decisions**, not speculation.
+Document decisions, not speculation.
 
-Documentation should explain:
-
--   Why a design decision was made.
--   What responsibilities each component owns.
--   Assumptions and invariants.
--   Configuration and operational behavior.
--   Test results that were actually observed.
-
-We avoid documenting imagined future capabilities or speculative designs
-until they become active engineering decisions.
-
-------------------------------------------------------------------------
+---
 
 # Testing Philosophy
 
-Testing exists to increase confidence, not merely to obtain a passing
-result.
+Testing exists to increase confidence, not merely to obtain a passing result.
 
-We: - Record actual observations. - Preserve regression tests. - Expand
-the test suite as features evolve. - Prefer repeatable tests over ad hoc
-experimentation.
+---
 
-------------------------------------------------------------------------
+# Branch Naming Convention
+
+Branches should communicate the purpose of the work.
+
+## Branch Types
+
+- `feature/<name>` — New functionality.
+- `bugfix/<name>` — Defect corrections.
+- `docs/<name>` — Documentation-only work.
+- `test/<name>` — Test planning, execution, or test documentation.
+- `release/<version>` — Release preparation.
+- `experiment/<name>` — Exploratory work or prototypes that may or may not become production features.
+
+## Guidelines
+
+- Use lowercase.
+- Separate words with hyphens.
+- Keep names concise.
+- One coherent idea per branch.
+
+---
 
 # Git Philosophy
 
-Git history is part of the project's documentation.
+- Keep `main` stable.
+- Develop on purpose-specific branches.
+- Every commit should represent one coherent idea.
+- Commit messages describe intent.
+- Pull Requests explain why work should be merged.
 
--   Keep `main` stable.
--   Develop features on feature branches.
--   Every commit should represent one coherent idea.
--   Commit messages should describe intent.
--   Use pull requests as an opportunity to review and explain changes.
-
-GitHub is the publication site.
-
-The local repository is the workshop.
-
-------------------------------------------------------------------------
+---
 
 # Coding Philosophy
 
-We strive to write code that communicates its intent.
+Prefer readable, maintainable code.
 
-We prefer: - Readability over brevity. - Explicitness over cleverness. -
-Small focused classes. - Self-documenting code. - Comments that explain
-*why*, not *what*. - Consistent naming. - Incremental improvement.
-
-Whenever practical, leave the code easier to understand than it was
-before.
-
-------------------------------------------------------------------------
+---
 
 # Definition of Done
 
-A feature is considered complete when:
+- Works correctly.
+- Tested.
+- Documented.
+- Repository remains releasable.
 
--   The implementation works as intended.
--   Existing functionality continues to work.
--   Appropriate tests have been executed.
--   Documentation has been updated.
--   The repository remains in a releasable state.
--   Another developer could understand the change from the code,
-    documentation, and commit history.
-
-------------------------------------------------------------------------
+---
 
 # Final Thoughts
 
-This repository is intended to demonstrate thoughtful software
-engineering through practical work.
+If future contributors understand not only *what* was built, but *why*, these rules have served their purpose.
 
-Its success will not be measured solely by the capabilities of the
-finished script, but also by the clarity of its design, the quality of
-its documentation, the discipline of its workflow, and the usefulness of
-its history.
-
-If future contributors understand not only *what* was built, but also
-*why* it was built that way, then these rules have served their purpose.
-
-------------------------------------------------------------------------
+---
 
 **Adopted by the SpaceEngineers1-Scripts project.**
