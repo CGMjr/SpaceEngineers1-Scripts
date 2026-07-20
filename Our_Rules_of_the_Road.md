@@ -6,12 +6,12 @@
 
 # Purpose
 
-This repository exists to accomplish more than producing a working Space Engineers script.
+This endeavor exists to accomplish more than producing a working Space Engineers script.
 
 It is intended to:
 
 - Solve a practical problem.
-- Serve as an exercise in thoughtful software engineering.
+- Serve as an exercise in thoughtful software design and development.
 - Provide a vehicle for learning Git and GitHub.
 - Preserve engineering decisions for future reference.
 - Become an example that can be shared with and learned from by others.
@@ -55,53 +55,6 @@ We recognize that software is read far more often than it is written.
 
 ---
 
-# Engineering Workflow
-
-Every engineering activity follows this lifecycle.
-
-1. Create or identify an Issue.
-2. Perform analysis.
-3. Plan verification by creating or updating the test plan.
-4. Complete the design.
-5. Implement the solution.
-6. Verify the implementation.
-7. Update the project documentation.
-8. Create and review the Pull Request.
-9. Merge into `main`.
-10. Close the Issue.
-
-Testing is intentionally planned before implementation begins. The test
-plan defines how success will be measured and guides the implementation.
-
-Documentation is a first-class engineering activity and is completed as
-part of the feature, not afterward.
-
----
-
-# GitHub Workflow
-
-Each engineering activity is carried through the repository using the
-following workflow.
-
-1. Start on `main`.
-2. Pull origin.
-3. Create a purpose-specific branch.
-4. Make the changes.
-5. Commit locally.
-6. Publish the branch.
-7. Create a Pull Request.
-8. Review the changes.
-9. Merge into `main`.
-10. Delete the branch.
-11. Return to `main`.
-12. Pull origin.
-13. Verify a clean working tree before beginning the next task.
-
-The workflow is complete only when the repository has returned to a
-known-good state on `main`, ready for the next engineering activity.
-
----
-
 # Documentation Principles
 
 - Document decisions, not speculation.
@@ -122,24 +75,75 @@ Verification artifacts belong on the same branch as the implementation they vali
 
 ---
 
-# Branch Naming Convention
+# Coding Philosophy
 
-## Branch Types
+Prefer readable, maintainable code.
 
-- `feature/<name>` — New functionality.
-- `bugfix/<name>` — Defect corrections.
-- `docs/<name>` — Documentation-only work.
-- `test/<name>` — Test planning, execution, or test documentation.
-- `release/<version>` — Release preparation.
-- `experiment/<name>` — Exploratory work or prototypes.
+Write code that clearly expresses the agreed design rather than code that merely produces the correct result.
 
-## Guidelines
+---
 
-- Use lowercase.
-- Separate words with hyphens.
-- Keep names concise.
-- One coherent engineering activity per branch.
-- Keep only one engineering branch active at a time.
+# Creative Workflow
+
+Every significant improvement begins with recognizing an Opportunity.
+
+1. Identify an Opportunity.
+2. Perform analysis.
+3. Define one or more Work Items.
+4. Plan verification by creating or updating the test plan.
+5. Complete the design.
+6. Implement the solution.
+7. Verify the implementation.
+8. Update the project documentation.
+
+Creativity belongs primarily in identifying opportunities, performing analysis, and developing the design. Implementation should be the disciplined realization of those earlier decisions.
+
+Testing is intentionally planned before implementation begins. The test plan defines how success will be measured and guides the implementation.
+
+Documentation is a first-class development activity and is completed as part of the work, not afterward.
+
+---
+
+# Work Item Types
+
+Every Work Item represents one coherent piece of work.
+
+Each Work Item is classified according to its primary purpose.
+
+Current Work Item Types are:
+
+- **Feature** — Introduces new functionality.
+- **Bug Fix** — Corrects unintended behavior.
+- **Documentation** — Improves or expands project documentation.
+- **Testing** — Plans, performs, or records verification activities.
+- **Release** — Prepares or publishes a project release.
+- **Experiment** — Explores ideas or prototypes whose outcomes are intentionally uncertain.
+
+A Work Item should have exactly one primary type. The Work Item type determines how the work is organized and how purpose-specific Git branches are named.
+
+---
+
+# Definition of Done
+
+A Work Item is complete only when it:
+
+- Works correctly.
+- Is verified.
+- Is documented.
+- Is merged into `main`.
+- Leaves the repository releasable.
+- Returns the working tree to a clean state.
+- Has any associated tracking artifacts brought to an appropriate conclusion.
+
+---
+
+# Tracking Work
+
+Our Creative Workflow is intentionally independent of any particular tool.
+
+Work Items should be tracked using whatever tool best fits the project. For this repository, GitHub Issues are the preferred mechanism whenever persistent tracking, discussion, or collaboration is beneficial.
+
+GitHub implements our process; it does not define it.
 
 ---
 
@@ -153,45 +157,53 @@ Verification artifacts belong on the same branch as the implementation they vali
 - Finish every branch by returning to a clean, up-to-date `main` branch.
 
 ---
+# GitHub Workflow
 
-# GitHub Issues Philosophy
+Each Work Item is carried through the repository using the following workflow.
 
-GitHub Issues represent engineering work, not Git operations.
+1. Start on `main`.
+2. Pull origin.
+3. Create a purpose-specific branch.
+4. Make the changes.
+5. Commit locally.
+6. Publish the branch.
+7. Create a Pull Request.
+8. Review the changes.
+9. Merge into `main`.
+10. Delete the branch.
+11. Return to `main`.
+12. Pull origin.
+13. Verify a clean working tree before beginning the next Work Item.
 
-Examples of good Issues include:
-
-- Complete Version 1.1 Verification.
-- Update Version 1.1 Documentation.
-- Release Version 1.1.
-
-Examples of workflow activities rather than Issues include:
-
-- Commit.
-- Publish.
-- Merge.
-- Delete branch.
-
----
-
-# Coding Philosophy
-
-Prefer readable, maintainable code.
-
-Write code that clearly expresses the agreed design rather than code that merely produces the correct result.
+The workflow is complete only when the repository has returned to a
+known-good state on `main`, ready for the next Work Item.
 
 ---
 
-# Definition of Done
+# Branch Naming Convention
 
-An engineering activity is complete only when it:
+Our Git branch names reflect the type and purpose of the Work Item being implemented.
 
-- Works correctly.
-- Is verified.
-- Is documented.
-- Is merged into `main`.
-- Leaves the repository releasable.
-- Returns the working tree to a clean state.
-- Has its associated Issue closed.
+Each branch name begins with the appropriate Work Item type followed by a concise description.
+
+## Branch Prefixes
+
+- `feature/<name>` — New functionality.
+- `bugfix/<name>` — Defect corrections.
+- `docs/<name>` — Documentation-only work.
+- `test/<name>` — Test planning, execution, or test documentation.
+- `release/<version>` — Release preparation.
+- `experiment/<name>` — Exploratory work or prototypes.
+
+These prefixes correspond directly to the Work Item Types defined earlier in this document.
+
+## Guidelines
+
+- Use lowercase.
+- Separate words with hyphens.
+- Keep names concise.
+- One coherent Work Item per branch.
+- Work on only one Work Item per active branch.
 
 ---
 

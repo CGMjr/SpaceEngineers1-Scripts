@@ -132,3 +132,65 @@ The project workflow is now:
 The objective is to move architectural creativity into the analysis and
 design phases so implementation primarily becomes the faithful
 translation of agreed design decisions into code.
+
+------------------------------------------------------------------------
+
+## 2026-07 Evolution of Our Development Philosophy
+
+Recent discussions prompted us to refine the language we use to describe how work moves from an idea to a completed feature.
+
+Earlier entries in these notes describe the engineering process in terms of Analysis, Tests, Design, and Implementation. That description remains historically accurate and intentionally has not been revised. It records how we understood the project at that point in time.
+
+During the Version 1.1 implementation we observed that implementation, testing, documentation, and design updates all traveled together on a single feature branch and were completed together under a single Definition of Done. This experience led us to recognize that the Work Item—not an individual artifact or GitHub Issue—is the fundamental unit of engineering work.
+
+### Opportunities, Work Items, and Branches
+
+We now distinguish three related, but separate, concepts.
+
+An **Opportunity** is the recognition that something may be worth creating, improving, or investigating.
+
+Analysis determines whether that Opportunity should become one or more **Work Items**.
+
+A **Work Item** represents one coherent piece of work that produces a meaningful change to the project. A Work Item is independent of any particular tracking tool.
+
+A **Git branch** is simply the implementation vehicle used to perform a Work Item. The branch exists to isolate changes while the Work Item is completed; it is not the Work Item itself.
+
+The relationship can be summarized as follows:
+
+```text
+Opportunity
+    ↓
+Analysis
+    ↓
+0..N Work Items
+    ↓
+1 implementation branch
+    ↓
+1 coherent product change
+    ↓
+1..N affected artifacts
+    ↓
+Definition of Done
+    ↓
+Merge
+```
+
+The branch is therefore a temporary implementation mechanism, while the Work Item represents the enduring unit of engineering work.
+
+### Evolving Taxonomy
+
+An important lesson from Version 1.1 is that our terminology has become more precise.
+
+Early discussions frequently used the term **GitHub Issue** when describing work to be performed. Experience led us to recognize that this unintentionally allowed the tool to define the process.
+
+We now separate three independent concerns:
+
+- **Creative Workflow** — how ideas become software.
+- **Work Tracking** — how Work Items are organized, prioritized, and monitored.
+- **GitHub Workflow** — how Git and GitHub are used to implement, review, and integrate completed Work Items.
+
+GitHub Issues remain an excellent mechanism for tracking Work Items within this repository, but they are no longer considered the definition of the development process itself.
+
+This refinement better reflects the philosophy that software development is fundamentally a creative activity supported by tools rather than a process defined by those tools.
+
+It also reinforces one of the project's guiding principles: implementation should be the faithful execution of decisions made during analysis and design, while the project's terminology should describe the engineering concepts themselves rather than the particular tools used to manage them.
