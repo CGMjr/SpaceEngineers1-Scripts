@@ -7,11 +7,11 @@ ship.
 
 Investigation of Space Engineers PB API limitations revealed:
 
--   Programmable Blocks cannot discover arbitrary disconnected grids.
--   Landing-gear-attached grids are not exposed through
-    GridTerminalSystem in a useful way.
--   A PB on a gooseEgg cannot be triggered directly from the goose
-    cockpit.
+- Programmable Blocks cannot discover arbitrary disconnected grids.
+- Landing-gear-attached grids are not exposed through
+  GridTerminalSystem in a useful way.
+- A PB on a gooseEgg cannot be triggered directly from the goose
+  cockpit.
 
 The design evolved toward a station-centric architecture.
 
@@ -21,10 +21,10 @@ The design evolved toward a station-centric architecture.
 
 Testing confirmed:
 
-1.  A station PB can see its own connector before docking.
-2.  The station PB can lock the station connector.
-3.  Once locked, the station PB can access the connected gooseEgg grid.
-4.  Cargo inventories on the gooseEgg become visible to the station PB.
+1. A station PB can see its own connector before docking.
+2. The station PB can lock the station connector.
+3. Once locked, the station PB can access the connected gooseEgg grid.
+4. Cargo inventories on the gooseEgg become visible to the station PB.
 
 This discovery enabled automatic fill-percentage monitoring.
 
@@ -70,7 +70,7 @@ inventory. Fill-percentage calculations were revised to include both
 cargo container inventories and the connected gooseEgg connector
 inventory.
 
-------------------------------------------------------------------------
+
 
 ## 2026-07 Version 1.1 Design Evolution
 
@@ -79,27 +79,40 @@ architecture was extended to support explicit connector participation.
 
 ### Connector Participation
 
--   Participation is determined exclusively from the configured station
-    connector's `OtherConnector`.
--   Only the arriving connector's Custom Data is inspected.
--   The connected grid is never searched.
--   The station never modifies another grid's Custom Data.
--   Automation is opt-in. Absence of a declaration is treated as
-    non-participation.
+Connector participation is determined exclusively from the configured
+station connector's `OtherConnector`.
 
-Configuration contract:
+A participating connector advertises itself through the following
+contract:
 
-``` ini
+```ini
 [StationCargoController]
 Managed=true
 ```
 
+Connectors that advertise participation enter the existing cargo
+automation pipeline unchanged.
+
+Connectors that do not advertise participation are intentionally
+excluded from cargo automation. They remain connected in the
+`ReportAndWait` state until they depart.
+
+This design intentionally avoids:
+
+- searching the connected grid for participating connectors
+- modifying another grid's Custom Data
+
+The station's responsibility is limited to evaluating the connector
+directly attached to its configured dock.
+
 ### State Machine Extension
 
-Version 1.1 introduces the `ReportAndWait` state. Non-participating
-connectors remain locked, no cargo automation occurs, the current state
-is reported, and the station waits for connector removal before
-returning to `WaitingForContainer`.
+Version 1.1 introduces the `ReportAndWait` state to support
+non-participating connectors.
+
+The station reports that the connector is not participating, performs no
+cargo automation, and waits for connector removal before returning to
+`WaitingForContainer`.
 
 ### Architectural Boundary
 
@@ -107,24 +120,14 @@ Participation is determined before cargo processing begins. Once
 participation has been established, the existing cargo-processing
 pipeline remains unchanged.
 
-### Implementation Strategy
-
-A single helper method:
-
-``` csharp
-bool IsParticipatingConnector()
-```
-
-will encapsulate participation determination.
-
 ### Engineering Process
 
 The project workflow is now:
 
-1.  Analysis
-2.  Tests
-3.  Design
-4.  Implementation
+1. Analysis
+2. Tests
+3. Design
+4. Implementation
 
 The objective is to move architectural creativity into the analysis and
 design phases so implementation primarily becomes the faithful

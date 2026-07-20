@@ -333,94 +333,174 @@ MORE TESTERS TO EXECUTE.
 
 ## Session 007
 
-Date: TBD Game version: TBD
+Date: 7/18/26 Game version: 1.209.024 B0
 
 ### Managed Connector Identification
 
-These tests validate the Version 1.1 connector participation contract
-before cargo automation.
+These tests validate the Version 1.1 connector participation contract before cargo automation.
 
 ### Test 007-01 -- Managed Connector
 
-**Setup**
-
-``` ini
+Setup:
+```ini
 [StationCargoController]
 Managed=true
 ```
+Expected: Lock, recognize participation, enter Processing, cargo automation proceeds, disconnect behavior unchanged.
 
-**Expected** 1. Station locks connector. 2. Reads `OtherConnector`
-Custom Data. 3. Recognizes participation. 4. Enters `Processing`. 5.
-Cargo automation proceeds.
+Actual: Locked, recognized as participant, entered Processing. Cargo unloaded to below configured theshold. Disconnect behavior confirmed. GooseEgg disconnected. Latch state set to "WaitingForContainerRemoval."
 
-**Actual** TBD
+Pass / Fail: PASS with all nominal processing completed as expected.
 
-**Pass / Fail** TBD
+### Test 007-02 -- Explicit Opt-Out
 
-### Test 007-02 -- No StationCargoController Section
-
-**Setup** Empty Custom Data.
-
-**Expected** 1. Locks connector. 2. Reads `OtherConnector`. 3. No
-section found. 4. Enters `ReportAndWait`. 5. Connector remains locked.
-6. No cargo automation.
-
-**Actual** TBD
-
-**Pass / Fail** TBD
-
-### Test 007-03 -- Explicit Opt-Out
-
-**Setup**
-
-``` ini
+Setup:
+```ini
 [StationCargoController]
 Managed=false
 ```
+Expected: Enter ReportAndWait, remain connected, no cargo automation. After manually disconnecting the container the state should remain as ReportAndWait. After the container becomes unconnectable (lifted from the station connector) the state should switch to WaitingForContainer.
 
-**Expected** ReportAndWait; connector remains locked; no cargo
-automation.
+Actual: Entered ReportAndWait, remained connected, no cargo automation. Manually unlocked the unmanaged container's connector and the PB remained in ReportAndWait (expected behavior). Unmanaged container lifted to become unconnectable and the PB latch state moved to WaitingForContainer (expected behavior).
 
-**Actual** TBD
+Pass / Fail: PASS. Note: added additional Expected language to this test to cover a full container cycle.
 
-**Pass / Fail** TBD
+### Test 007-03 -- No StationCargoController Section
 
-### Test 007-04 -- Malformed or Unrecognized Custom Data
+Setup: Empty Custom Data.
 
-**Setup** Malformed INI or unrelated section.
+Expected: Enter ReportAndWait, remain connected, no cargo automation. After manually disconnecting the container the state should remain as ReportAndWait. After the container becomes unconnectable (lifted from the station connector) the state should switch to WaitingForContainer.
 
-**Expected** Graceful handling; ReportAndWait; connector remains locked;
-no automation.
 
-**Actual** TBD
+Actual: Entered ReportAndWait, remained connected, no cargo automation. Manually unlocked the unmanaged container's connector and the PB remained in ReportAndWait (expected behavior). Unmanaged container lifted to become unconnectable and the PB latch state moved to WaitingForContainer (expected behavior).
 
-**Pass / Fail** TBD
+Pass / Fail: PASS. Note: added additional Expected language to this test to cover a full container cycle.
 
-### Test 007-05 -- Missing Managed Key
+### Test 007-04 -- Missing Managed Key
 
-**Setup**
-
-``` ini
+Setup:
+```ini
 [StationCargoController]
 ```
 
-**Expected** Section recognized but treated as non-participating;
-ReportAndWait.
+Expected: Treat as non-participating; ReportAndWait.
 
-**Actual** TBD
+Actual: PASS. All behavior for a Unmanaged container was observed.
 
-**Pass / Fail** TBD
+Pass / Fail: PASS
+
+### Test 007-05 -- Malformed INI in OtherConnector Custom Data
+
+Setup
+
+The arriving **OtherConnector's** Custom Data contains a malformed INI section. The Programmable Block's Custom Data remains valid.
+
+Expected:
+
+1. Script reads the OtherConnector's Custom Data.
+2. Malformed INI is handled gracefully.
+3. Script enters `ReportAndWait`.
+4. Connector remains locked.
+5. Script does not enter the `Error` state.
+
+Actual: All behavior for a Unmanaged container was observed.
+
+Pass / Fail: PASS.
+
+### Test 007-06 -- Unrelated Sections in OtherConnector Custom Data
+
+Setup
+
+The arriving **OtherConnector's** Custom Data contains valid INI sections, but none named `[StationCargoController]`. The Programmable Block's Custom Data remains valid.
+
+Expected
+
+1. Script reads the OtherConnector's Custom Data.
+2. No participation section is found.
+3. Connector is treated as non-participating.
+4. Script enters `ReportAndWait`.
+5. Connector remains locked.
+6. No cargo automation occurs.
+
+Actual: All behavior for a Unmanaged container was observed.
+
+Pass / Fail: PASS
+
+### Test 007-07 -- Undock While in ReportAndWait
+
+Objective
+
+Verify that a non-participating connector is forgotten immediately after departure.
+
+Setup
+
+- Configure the arriving connector to reach `ReportAndWait`.
+- Undock the connector.
+
+Expected
+
+1. Connector remains locked while docked.
+2. No cargo automation occurs.
+3. Departure is detected.
+4. Script returns to `WaitingForContainer`.
+5. Next arriving connector is evaluated normally.
+
+Actual: All behavior for a Unmanaged container was observed. Once the container has become Unconnectable the PB latch state returned to WaitingFOrContainer. The next connectable container was processed correctly.
+
+Pass / Fail: PASS
+
+### Test 007-08 -- Dock a ship with empty Custom Data
+
+Objective
+
+Verify that a non-participating connector attached to a ship is treated as an Unmanaged connector.
+
+Setup
+
+- Dock any ship whose connector has no data in its Custom Data.
+- Confirm that the PB latch status becomes `ReportAndWait`.
+
+Expected: The PB will treat the ship as an Unmanaged connector, setting latch state to `ReportAndWait`. PB retains that state when the ship is  manually disconnected. When the ship departs the PB returns to `WaitingForContainer`.
+
+Actual: PB performed as expected.
+
+Pass / Fail: PASS
+
+### Test 007-09 -- Dock a ship with a Managed connector
+
+Objective
+
+Verify that a participating connector attached to a ship is treated as an Managed connector.
+
+Setup
+- Dock any ship whose connector has the correct Managed INI entries in its Custom Data.
+```ini
+[StationCargoController]
+Managed=true
+```
+- Execute Test 007-01
+
+Expected: The PB will treat the ship as an Managed connector and pass Test 007-01 validation.
+
+Actual: Connected with proper INI and empty container on an Unload Managed connector. PB processed correctly and entered `WaitingForContainerRemoval`. Next connected with proper INI and 73% filled container(s). PB recognized, calculated fill%, entered `Processing` state. Manually reduced test ship's inventory to below 5% threshold. PB triggered unlock and entered `WaitingForContainerRemoval` state. Moved the ship. PB returned to `WaitingForContainer` state as expected.
+
+Pass / Fail: PASS
+
 
 ### Session Summary
 
-  Test ID   Description                             Result
-  --------- --------------------------------------- --------
-  007-01    Managed Connector                       TBD
-  007-02    No StationCargoController Section       TBD
-  007-03    Explicit Opt-Out                        TBD
-  007-04    Malformed or Unrecognized Custom Data   TBD
-  007-05    Missing Managed Key                     TBD
+| Test ID | Description | Result |
+|---|---|---|
+|007-01|Managed Connector|PASS|
+|007-02|Explicit Opt-Out|PASS|
+|007-03|No StationCargoController Section|PASS|
+|007-04|Missing Managed Key|PASS|
+|007-05|Malformed INI in OtherConnector Custom Data|PASS|
+|007-06|Unrelated Sections in OtherConnector Custom Data|PASS|
+|007-07|Undock While in ReportAndWait|PASS|
+|007-08|Dock a ship with empty Custom Data|PASS|
+|007-09|Dock a ship with a Managed connector|PASS|
 
 ### Overall Session Result
 
-TBD
+ALL TESTS PASSED. Version 1.1 Connector Participation validation completed successfully.
