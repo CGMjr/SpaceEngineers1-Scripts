@@ -1,5 +1,5 @@
 /*
- * StationCargoController v1.0.6
+ * StationCargoController v1.0.7
  *
  * Space Engineers Version 1
  * In-Game Programmable Block Edition
@@ -25,6 +25,7 @@ enum StationState
     Processing,
     DisconnectPending,
     WaitingForContainerRemoval,
+    ReportAndWait,
     Error
 }
 
@@ -95,6 +96,10 @@ public void Main(string argument, UpdateType updateSource)
         case StationState.WaitingForContainerRemoval:
             ProcessWaitingForContainerRemoval();
             break;
+
+        case StationState.ReportAndWait:
+            ProcessReportAndWait();
+            break;
     }
 }
 
@@ -112,7 +117,16 @@ void ProcessWaitingForContainer()
         MyShipConnectorStatus.Connected)
     {
         Echo("Connected.");
-        _state = StationState.Processing;
+
+        if (IsParticipatingConnector(_stationConnector.OtherConnector))
+        {
+            _state = StationState.Processing;
+        }
+        else
+        {
+            Echo("Connector not participating.");
+            _state = StationState.ReportAndWait;
+        }
     }
 }
 
@@ -181,6 +195,53 @@ void ProcessDisconnectPending()
 
     _state =
         StationState.WaitingForContainerRemoval;
+}
+
+
+void ProcessReportAndWait()
+{
+    Echo("Connected connector is not managed.");
+    Echo("Waiting for dock to clear.");
+
+    if (_stationConnector.Status == MyShipConnectorStatus.Unconnected)
+    {
+        _state = StationState.WaitingForContainer;
+    }
+}
+
+bool IsParticipatingConnector(IMyShipConnector connector)
+{
+    if (connector == null)
+        return false;
+
+    string data = connector.CustomData ?? "";
+
+    bool inSection = false;
+
+    foreach (string raw in data.Split('\n'))
+    {
+        string line = raw.Trim();
+
+        if (line.StartsWith("["))
+        {
+            inSection = line.Equals("[StationCargoController]");
+            continue;
+        }
+
+        if (!inSection)
+            continue;
+
+        if (line.StartsWith("Managed="))
+        {
+            bool managed;
+            if (bool.TryParse(line.Substring(8).Trim(), out managed))
+                return managed;
+
+            return false;
+        }
+    }
+
+    return false;
 }
 
 void ProcessWaitingForContainerRemoval()
