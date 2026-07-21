@@ -1,4 +1,4 @@
-# SE1-StationCargoController Design Document (Version 1.1.0)
+# DockHand Design Document (Version 1.1.0)
 
 ## Project Overview
 
@@ -711,11 +711,11 @@ Unable to identify connected container.
 ```text
 SpaceEngineers1-Scripts/
 │
-├── StationCargoController/
+├── DockHand/
 │   ├── PB-Script.cs
 │   ├── README.md
 │   ├── DevelopmentNotes.md
-│   └── SE1-StationCargoController-DesignDoc.md
+│   └── SE1-DockHand-DesignDoc.md
 │
 ├── LICENSE
 └── README.md

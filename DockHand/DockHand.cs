@@ -74,7 +74,7 @@ public void Main(string argument, UpdateType updateSource)
         return;
     }
 
-    Echo("=== StationCargoController ===");
+    Echo("=== DockHand ===");
     Echo("State: " + _state);
     Echo("Mode: " + _mode);
     Echo("Threshold: " + _threshold.ToString("F1") + "%");
