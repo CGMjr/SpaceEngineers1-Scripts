@@ -1,15 +1,20 @@
-# StationCargoController
+# DockHand
 
-Automated loading and unloading station controller for **Space Engineers Version 1**.
+DockHand is a Space Engineers Programmable Block script that automates routine cargo transfer operations at docking stations, allowing players to focus on the fun stuff rather than repetitive logistics.
 
-StationCargoController runs entirely on a station Programmable Block and
-automates cargo transfer for detachable cargo containers ("gooseEggs").
-The transport ship and cargo container remain passive and require no
-automation of their own.
+# Why "DockHand"?
+
+A dock hand assists the operator by performing the repetitive tasks required to keep cargo moving efficiently.
+
+DockHand follows the same philosophy. Rather than replacing the player, DockHand handles routine dock operations so the player can focus on designing, flying, and building.
+
+DockHand is intended to feel like a dependable crew member rather than another machine that requires constant attention.
 
 ---
 
 ## Features
+
+DockHand operates from a station's Programmable Block. It manages a designated station connector and cooperates with participating cargo containers through a simple connector contract. This station-centric design keeps arriving containers simple while allowing docking operations to be automated.
 
 * Automatic connector locking.
 * Automatic disconnect using configurable fill thresholds.
@@ -58,11 +63,9 @@ Example:
 Managed=true
 ```
 
-This entry is placed in the **arriving connector's** Custom Data—not in
-the station's Programmable Block.
+This entry is placed in the **arriving connector's** Custom Data—not in the station's Programmable Block.
 
-Connectors that do not advertise participation remain connected but are
-excluded from cargo automation.
+Connectors that do not advertise participation remain connected but are excluded from cargo automation.
 
 ---
 
@@ -74,21 +77,20 @@ For participating connectors the station performs the following sequence:
 2. Lock the connector.
 3. Verify participation.
 4. Monitor cargo fill percentage.
-5. Transfer cargo until the configured threshold is reached.
-6. Wait the configured disconnect delay.
-7. Disconnect.
-8. Wait for container removal before accepting another container.
+5. Wait the configured disconnect delay.
+6. Disconnect.
+7. Wait for container removal before accepting another container.
 
 ---
 
 ## Repository
 
 ```text
-StationCargoController/
+DockHand/
 ├── PB-Script.cs
 ├── README.md
 ├── DevelopmentNotes.md
-├── SE1-StationCargoController-DesignDoc.md
+├── SE1-DockHand-DesignDoc.md
 └── TestResults.md
 ```
 
@@ -100,14 +102,14 @@ StationCargoController/
 |----------|---------|
 | README.md | Project overview and configuration |
 | DevelopmentNotes.md | Engineering decisions and project evolution |
-| SE1-StationCargoController-DesignDoc.md | System architecture and design rationale |
+| SE1-DockHand-DesignDoc.md | System architecture and design rationale |
 | TestResults.md | In-game verification history |
 
 ---
 
-## Project Status
+## Current Capabilities
 
-Current implementation:
+Current Release:
 
 **Version 1.1**
 
