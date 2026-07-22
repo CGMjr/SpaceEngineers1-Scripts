@@ -194,3 +194,11 @@ GitHub Issues remain an excellent mechanism for tracking Work Items within this 
 This refinement better reflects the philosophy that software development is fundamentally a creative activity supported by tools rather than a process defined by those tools.
 
 It also reinforces one of the project's guiding principles: implementation should be the faithful execution of decisions made during analysis and design, while the project's terminology should describe the engineering concepts themselves rather than the particular tools used to manage them.
+
+
+------------------------------------------------------------------------
+
+## 2026-07 Introducing a Product name: DockHand.
+
+An important milestone after version 1.0.7 was the introduction of the concept of a product. The script was given the product name DockHand. This change had a larger impact than it might seem at first glance. It led to a long discussion on naming conventions, branding, user-facing information vs. programatic contract control, etc. We replaced the historical product identifier "StationCargoController" everywhere except where it forms part of the connector compatibility contract. The remaining documentation harmonization work was intentionally deferred by recording it as an Opportunity for a future Work Item.
+
