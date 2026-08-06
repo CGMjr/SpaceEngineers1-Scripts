@@ -3200,7 +3200,7 @@ Supported: PB-accessible world-position telemetry contains an observable and rep
 
 Candidate #18 advances.
 
-### Investigation 009-003 Verify Branch: RESTART HERE
+### Investigation 009-003 Reinvestigate 
 
 #### Canonical Proof(s)
 
@@ -3233,13 +3233,20 @@ III. Prove that the docking process completes reliably under normal operating co
 11. (III.1) Observe zero failures over repeated docking attempts under normal operating conditions.
 
 #### Observations
+Pass 1: Lab gooseEgg with pistons. I did not realize that I needed to alter the Custom Data of the Programming block to include the new `ConnectWaitSeconds` parameter. I did not see any indication of that value on the Echo() data in the terminal. However, the default of 1.0 s was established and used. I confirm evidences 1,2,3,4,and 6. Evidence 5 is not observable because the Lab gooseEgg container is too heavy to be displaced by magnetic attraction. Importantly, I confirmed that evidence 7 occurred! As did evidence 8,9,10. The managed connector settled, and I manually counted the wait time. It seemed to be acceptably close. I altered the `ConnectWaitSeconds` to 10s and 5s, conducting repeated docking attempts. Evidence 11 was observed. I set the `ConnectWaitSeconds` to 0.0s and retried. However, the Lab gooseEgg had jiggled out of alignment after repeated operations, so I had to reposition. When I had done so I I lowered the connector and it still settled; there was a delay before connection. I set the `ConnectWaitSeconds` to -1.0s. Same results. I altered the velocity of the pistons from 0.3 to 0.1m/s to simulate a very slow approach. The connection took place with a visible gap between the connectors, confirming that `ConnectWaitSeconds`set to -1.0s behaved as an unaltered wait time. Lastly, setting `ConnectWaitSeconds`to 0.0s gave the same evidence.
+
+Next I performed these actions with a free-flying grid. I set the `ConnectWaitSeconds` to 3.0s. All evidence observed. Then `ConnectWaitSeconds`to 0.0s. Evidence 7 was not observed (premature lock, as expected).
+
+Note: I observe that the `ConnectWaitSeconds`is not displayed in the Echo() area of the terminal, even though State, Mode, and Threshold are. 
+
+Final set of observations were successful. The automated drone docked at one station and the connect was delayed approx 3.0s. I altered the `ConnectWaitSeconds` at that station to 10.0s and proceeded to the 2nd station. `ConnectWaitSeconds`was set at 3.0s at that station, and the drone settled, connection made approx 3.0s later. Final leg was back to station one. The managed connectors settled and at least 10s elapsed before connection.
 
 
 #### Verdict
 | Proof | Evidence | Verdict |
 |---|---|---|
-| I. |  |  |
-| II. |   |  |
-| III.|  |  |
+| I. |   Provided  | Established |
+| II. | Provided  | Established  |
+| III.| Provided  | Established |
 
 _Proof = Id of Proof, Evidence = [provided,insufficient,denied], Verdict = [Established, More Observations required, Not Established]_
