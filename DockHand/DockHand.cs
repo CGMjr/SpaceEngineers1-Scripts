@@ -1,5 +1,5 @@
 /*
- * DockHand v1.0.8
+ * DockHand v1.0.9
  *
  * Space Engineers Version 1
  * In-Game Programmable Block Edition
@@ -15,6 +15,7 @@
  * - Load and unload modes.
  * - Volume-based fill percentage.
  * - Configurable disconnect delay.
+ * - Configurable connect wait requiring continuous Connectable status.
  * - Startup recovery.
  * - WaitingForContainerRemoval latch state.
  */
@@ -38,8 +39,11 @@ string _connectorName = "Cnx";
 
 double _threshold = 95.0;
 double _disconnectDelaySeconds = 10.0;
+double _connectWaitSeconds = 1.0;
 
 double _disconnectTimerSeconds = 0.0;
+double _connectWaitTimerSeconds = 0.0;
+bool _connectWaitPending = false;
 
 double _finalFilledPercent = 0.0;
 
@@ -106,9 +110,39 @@ public void Main(string argument, UpdateType updateSource)
 void ProcessWaitingForContainer()
 {
     if (_stationConnector.Status != MyShipConnectorStatus.Connectable)
+    {
+        AbandonConnectWait();
+        return;
+    }
+
+    if (!_connectWaitPending)
+    {
+        _connectWaitPending = true;
+        _connectWaitTimerSeconds = 0.0;
+
+        Echo("Container detected.");
+        Echo("Waiting before connection...");
+        return;
+    }
+
+    _connectWaitTimerSeconds +=
+        Runtime.TimeSinceLastRun.TotalSeconds;
+
+    double remaining =
+        _connectWaitSeconds -
+        _connectWaitTimerSeconds;
+
+    if (remaining < 0)
+        remaining = 0;
+
+    Echo("Connect in "
+        + remaining.ToString("F1")
+        + "s");
+
+    if (_connectWaitTimerSeconds <
+        _connectWaitSeconds)
         return;
 
-    Echo("Container detected.");
     Echo("Attempting connection...");
 
     _stationConnector.Connect();
@@ -117,6 +151,8 @@ void ProcessWaitingForContainer()
         MyShipConnectorStatus.Connected)
     {
         Echo("Connected.");
+
+        AbandonConnectWait();
 
         if (IsParticipatingConnector(_stationConnector.OtherConnector))
         {
@@ -128,6 +164,12 @@ void ProcessWaitingForContainer()
             _state = StationState.ReportAndWait;
         }
     }
+}
+
+void AbandonConnectWait()
+{
+    _connectWaitPending = false;
+    _connectWaitTimerSeconds = 0.0;
 }
 
 void ProcessProcessing()
@@ -424,6 +466,13 @@ void LoadConfiguration()
                 out _disconnectDelaySeconds);
         }
         else if (line.StartsWith(
+            "ConnectWaitSeconds="))
+        {
+            double.TryParse(
+                line.Substring(19),
+                out _connectWaitSeconds);
+        }
+        else if (line.StartsWith(
             "ConnectorName="))
         {
             _connectorName =
@@ -439,4 +488,7 @@ void LoadConfiguration()
 
     if (_disconnectDelaySeconds < 0)
         _disconnectDelaySeconds = 0;
+
+    if (_connectWaitSeconds < 0)
+        _connectWaitSeconds = 0;
 }

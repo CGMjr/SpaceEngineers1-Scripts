@@ -202,3 +202,74 @@ It also reinforces one of the project's guiding principles: implementation shoul
 
 An important milestone after version 1.0.7 was the introduction of the concept of a product. The script was given the product name DockHand. This change had a larger impact than it might seem at first glance. It led to a long discussion on naming conventions, branding, user-facing information vs. programatic contract control, etc. We replaced the historical product identifier "StationCargoController" everywhere except where it forms part of the connector compatibility contract. The remaining documentation harmonization work was intentionally deferred by recording it as an Opportunity for a future Work Item.
 
+## 2026-08 Opportunity O-003 — Configurable Connect Wait
+
+Opportunity O-003 addresses DockHand issuing `Connect()` as soon as the
+managed station connector becomes `Connectable`. The selected design
+permits Space Engineers physics time to settle the arriving grid before
+DockHand locks the connector.
+
+### Implementation
+
+DockHand now supports a station-specific configuration value:
+
+```ini
+ConnectWaitSeconds=1.0
+```
+
+The implementation retains `WaitingForContainer` as the state responsible
+for detecting an arriving connector and adds internal pending-wait state
+rather than introducing another station state.
+
+When the configured station connector first becomes `Connectable`,
+DockHand starts a connect-wait interval and does not call `Connect()` on
+that update. While the connector remains continuously `Connectable`,
+elapsed time is accumulated using `Runtime.TimeSinceLastRun`.
+
+Only after the full configured interval has elapsed may DockHand issue
+`Connect()`.
+
+If the connector ceases to be `Connectable` before the interval completes,
+the pending interval and all accumulated time are discarded. If the
+connector later becomes `Connectable` again, DockHand begins a new full
+wait interval. Time from an abandoned interval is never credited to the
+new interval.
+
+The existing behavior after a successful connection is unchanged:
+participating connectors enter `Processing`; non-participating connectors
+enter `ReportAndWait`.
+
+### Configuration and Defensive Handling
+
+`ConnectWaitSeconds` is read from the Programmable Block's existing
+station configuration. The implementation uses a default of 1.0 second
+when the setting is absent and clamps negative configured values to zero.
+
+The production wait duration remains an empirical station-tuning choice.
+The 1.0-second value is an implementation default, not evidence that one
+second is sufficient for every docking situation.
+
+### Implementation Shape
+
+No new `StationState` value was introduced. The wait is subordinate to
+`WaitingForContainer`, represented by:
+
+- whether a connect wait is pending; and
+- elapsed time in the current uninterrupted `Connectable` interval.
+
+A small `AbandonConnectWait()` helper centralizes resetting both values.
+This keeps the existing cargo-processing, disconnect-delay,
+container-removal latch, participation contract, connector discovery, and
+startup-recovery paths intact.
+
+### Verification Status
+
+This implementation was generated from the O-003 design obligations.
+Those obligations require delayed connection, station-specific
+configuration, continuous `Connectable` status for the full interval,
+abandonment when `Connectable` is lost, and a fresh full interval after
+`Connectable` returns.
+
+The code has not yet been verified in the Space Engineers Programmable
+Block environment. Existing functionality and the O-003 obligations
+remain subject to the project's verification process.
