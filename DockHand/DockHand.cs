@@ -1,5 +1,5 @@
 /*
- * DockHand v1.0.9
+ * DockHand v1.0.9-O004
  *
  * Space Engineers Version 1
  * In-Game Programmable Block Edition
@@ -8,22 +8,38 @@
  * Automate loading and unloading stations for detachable
  * gooseEgg cargo containers.
  *
- * Design Highlights:
- * - Single managed connector.
- * - Exact connector name matching.
- * - Same-construct connector discovery.
- * - Load and unload modes.
- * - Volume-based fill percentage.
- * - Configurable disconnect delay.
- * - Configurable connect wait requiring continuous Connectable status.
- * - Startup recovery.
- * - WaitingForContainerRemoval latch state.
+ * O-004 investigation implementation:
+ * - A Managed Grid may declare PowerThreshold in the
+ *   participating connector's [StationCargoController] Custom Data.
+ * - Declared power thresholds are limited to 1%-99%.
+ * - If no power threshold is declared, the station default is 99%.
+ * - Aggregate battery stored power / aggregate battery capacity
+ *   determines power readiness.
+ * - A grid with no applicable batteries satisfies the power condition.
+ * - Power readiness is evaluated before release and again during
+ *   the disconnect-delay period.
+ * - Existing cargo-fill behavior remains unchanged for this
+ *   investigation.
+ *
+ * D-shape #5 / Connect Wait:
+ * - If a pending Connectable wait is abandoned, all accumulated wait
+ *   time is discarded.
+ * - A new full ConnectWaitSeconds interval begins when the connector
+ *   becomes Connectable again.
+ *
+ * Testability:
+ * - While a Managed Grid is connected and being evaluated, DockHand
+ *   passively displays the effective power requirement, applicable
+ *   current power state, and readiness result through Echo().
+ * - The displayed power information is produced from the same
+ *   PowerStatus used for the release decision.
  */
 
 enum StationState
 {
     WaitingForContainer,
     Processing,
+    WaitingForPower,
     DisconnectPending,
     WaitingForContainerRemoval,
     ReportAndWait,
@@ -40,6 +56,10 @@ string _connectorName = "Cnx";
 double _threshold = 95.0;
 double _disconnectDelaySeconds = 10.0;
 double _connectWaitSeconds = 1.0;
+
+const double DefaultPowerThreshold = 99.0;
+const double MinimumPowerThreshold = 1.0;
+const double MaximumPowerThreshold = 99.0;
 
 double _disconnectTimerSeconds = 0.0;
 double _connectWaitTimerSeconds = 0.0;
@@ -91,6 +111,10 @@ public void Main(string argument, UpdateType updateSource)
 
         case StationState.Processing:
             ProcessProcessing();
+            break;
+
+        case StationState.WaitingForPower:
+            ProcessWaitingForPower();
             break;
 
         case StationState.DisconnectPending:
@@ -168,6 +192,13 @@ void ProcessWaitingForContainer()
 
 void AbandonConnectWait()
 {
+    /*
+     * D-shape #5:
+     *
+     * Abandoning a pending wait discards all accumulated time.
+     * A later transition back to Connectable therefore starts a
+     * completely new ConnectWaitSeconds interval.
+     */
     _connectWaitPending = false;
     _connectWaitTimerSeconds = 0.0;
 }
@@ -183,36 +214,118 @@ void ProcessProcessing()
         return;
     }
 
+    /*
+     * PowerStatus is evaluated before the cargo condition is tested.
+     * This makes the effective requirement and current power state
+     * continuously observable while the grid is being serviced,
+     * rather than only after cargo becomes ready.
+     */
+    PowerStatus power = GetConnectedGridPowerStatus();
+
+    EchoPowerStatus(power);
+
     double fillPercent =
         GetConnectedGridFillPercentage();
 
     Echo("Fill: " + fillPercent.ToString("F2") + "%");
 
-    bool complete = false;
+    bool cargoReady = false;
 
     if (_mode.Equals("Load"))
     {
-        complete = fillPercent >= _threshold;
+        cargoReady = fillPercent >= _threshold;
     }
     else if (_mode.Equals("Unload"))
     {
-        complete = fillPercent <= _threshold;
+        cargoReady = fillPercent <= _threshold;
     }
 
-    if (!complete)
+    if (!cargoReady)
         return;
 
-    Echo("Threshold reached.");
+    Echo("Cargo requirement satisfied.");
 
+    /*
+     * Re-evaluate immediately before the release decision.
+     * This keeps the decision tied to the same current-state data
+     * that is displayed to the investigator.
+     */
+    power = GetConnectedGridPowerStatus();
+
+    EchoPowerStatus(power);
+
+    if (!power.IsReady)
+    {
+        Echo("Power requirement not satisfied.");
+        Echo("Waiting for power...");
+
+        _finalFilledPercent = fillPercent;
+        _state = StationState.WaitingForPower;
+        return;
+    }
+
+    Echo("Power requirement satisfied.");
+
+    BeginDisconnectPending(fillPercent);
+}
+
+void ProcessWaitingForPower()
+{
+    if (_stationConnector.Status !=
+        MyShipConnectorStatus.Connected)
+    {
+        Echo("Connection lost.");
+
+        _state = StationState.WaitingForContainer;
+        return;
+    }
+
+    PowerStatus power = GetConnectedGridPowerStatus();
+
+    EchoPowerStatus(power);
+
+    if (!power.IsReady)
+    {
+        Echo("Waiting for power...");
+        return;
+    }
+
+    Echo("Power requirement satisfied.");
+
+    BeginDisconnectPending(_finalFilledPercent);
+}
+
+void BeginDisconnectPending(double fillPercent)
+{
     _disconnectTimerSeconds = 0.0;
-
+    _finalFilledPercent = fillPercent;
     _state = StationState.DisconnectPending;
-	
-	_finalFilledPercent = fillPercent;
 }
 
 void ProcessDisconnectPending()
 {
+    if (_stationConnector.Status !=
+        MyShipConnectorStatus.Connected)
+    {
+        Echo("Connection lost.");
+
+        _state = StationState.WaitingForContainer;
+        return;
+    }
+
+    PowerStatus power = GetConnectedGridPowerStatus();
+
+    EchoPowerStatus(power);
+
+    if (!power.IsReady)
+    {
+        Echo("Power requirement no longer satisfied.");
+        Echo("Returning to WaitingForPower.");
+
+        _state = StationState.WaitingForPower;
+        return;
+    }
+
     _disconnectTimerSeconds +=
         Runtime.TimeSinceLastRun.TotalSeconds;
 
@@ -238,7 +351,6 @@ void ProcessDisconnectPending()
     _state =
         StationState.WaitingForContainerRemoval;
 }
-
 
 void ProcessReportAndWait()
 {
@@ -288,8 +400,10 @@ bool IsParticipatingConnector(IMyShipConnector connector)
 
 void ProcessWaitingForContainerRemoval()
 {
-	Echo("Final fill%: " + _finalFilledPercent.ToString("F1") + "%");
-	Echo("Waiting for dock to clear.");
+    Echo("Final fill%: " +
+        _finalFilledPercent.ToString("F1") + "%");
+    Echo("Waiting for dock to clear.");
+
     /*
      * Critical Design Requirement:
      *
@@ -397,35 +511,204 @@ double GetConnectedGridFillPercentage()
         return 0.0;
     }
 
-	double currentVolume = 0.0;
-	double maxVolume = 0.0;
+    double currentVolume = 0.0;
+    double maxVolume = 0.0;
 
-	foreach (var container in cargoContainers)
-	{
-		var inventory = container.GetInventory();
+    foreach (var container in cargoContainers)
+    {
+        var inventory = container.GetInventory();
 
-		currentVolume +=
-			(double)inventory.CurrentVolume;
+        currentVolume +=
+            (double)inventory.CurrentVolume;
 
-		maxVolume +=
-			(double)inventory.MaxVolume;
-	}
+        maxVolume +=
+            (double)inventory.MaxVolume;
+    }
 
-	var connectorInventory =
-		_stationConnector.OtherConnector.GetInventory();
+    var connectorInventory =
+        _stationConnector.OtherConnector.GetInventory();
 
-	currentVolume +=
-		(double)connectorInventory.CurrentVolume;
+    currentVolume +=
+        (double)connectorInventory.CurrentVolume;
 
-	maxVolume +=
-		(double)connectorInventory.MaxVolume;
+    maxVolume +=
+        (double)connectorInventory.MaxVolume;
 
-	if (maxVolume <= 0.0)
-		return 0.0;
+    if (maxVolume <= 0.0)
+        return 0.0;
 
-	return
-		(currentVolume / maxVolume) * 100.0;
+    return
+        (currentVolume / maxVolume) * 100.0;
+}
 
+struct PowerStatus
+{
+    public bool HasApplicableStorage;
+    public bool HasDeclaredThreshold;
+    public double ThresholdPercent;
+    public double StoredPower;
+    public double MaximumPower;
+    public double FillPercent;
+    public bool IsReady;
+}
+
+PowerStatus GetConnectedGridPowerStatus()
+{
+    PowerStatus status = new PowerStatus();
+
+    status.ThresholdPercent =
+        GetConnectedGridPowerThreshold(
+            out status.HasDeclaredThreshold);
+
+    if (_stationConnector == null ||
+        _stationConnector.OtherConnector == null)
+    {
+        status.IsReady = true;
+        return status;
+    }
+
+    var connectedGrid =
+        _stationConnector.OtherConnector.CubeGrid;
+
+    var batteries =
+        new List<IMyBatteryBlock>();
+
+    GridTerminalSystem.GetBlocksOfType(
+        batteries,
+        block => block.CubeGrid == connectedGrid);
+
+    double storedPower = 0.0;
+    double maximumPower = 0.0;
+
+    foreach (var battery in batteries)
+    {
+        if (battery.MaxStoredPower <= 0.0)
+            continue;
+
+        storedPower +=
+            (double)battery.CurrentStoredPower;
+
+        maximumPower +=
+            (double)battery.MaxStoredPower;
+    }
+
+    status.StoredPower = storedPower;
+    status.MaximumPower = maximumPower;
+
+    if (maximumPower <= 0.0)
+    {
+        /*
+         * No applicable battery storage means there is no
+         * power-readiness condition to satisfy.
+         */
+        status.HasApplicableStorage = false;
+        status.FillPercent = 100.0;
+        status.IsReady = true;
+        return status;
+    }
+
+    status.HasApplicableStorage = true;
+
+    status.FillPercent =
+        (storedPower / maximumPower) * 100.0;
+
+    if (status.FillPercent > 100.0)
+        status.FillPercent = 100.0;
+
+    if (status.FillPercent < 0.0)
+        status.FillPercent = 0.0;
+
+    status.IsReady =
+        status.FillPercent >=
+        status.ThresholdPercent;
+
+    return status;
+}
+
+double GetConnectedGridPowerThreshold(
+    out bool declared)
+{
+    declared = false;
+
+    if (_stationConnector == null ||
+        _stationConnector.OtherConnector == null)
+        return DefaultPowerThreshold;
+
+    string data =
+        _stationConnector.OtherConnector.CustomData ?? "";
+
+    bool inSection = false;
+
+    foreach (string raw in data.Split('\n'))
+    {
+        string line = raw.Trim();
+
+        if (line.StartsWith("["))
+        {
+            inSection =
+                line.Equals("[StationCargoController]");
+            continue;
+        }
+
+        if (!inSection)
+            continue;
+
+        if (!line.StartsWith("PowerThreshold="))
+            continue;
+
+        double threshold;
+
+        if (!double.TryParse(
+            line.Substring(15).Trim(),
+            out threshold))
+        {
+            return DefaultPowerThreshold;
+        }
+
+        if (threshold < MinimumPowerThreshold)
+            threshold = MinimumPowerThreshold;
+
+        if (threshold > MaximumPowerThreshold)
+            threshold = MaximumPowerThreshold;
+
+        declared = true;
+        return threshold;
+    }
+
+    return DefaultPowerThreshold;
+}
+
+void EchoPowerStatus(PowerStatus status)
+{
+    Echo("=== Power Readiness ===");
+
+    if (!status.HasApplicableStorage)
+    {
+        Echo("Power storage: none");
+        Echo("Power state: N/A");
+        Echo("Power requirement: " +
+            status.ThresholdPercent.ToString("F1") +
+            "% (" +
+            (status.HasDeclaredThreshold ? "declared" : "default") +
+            ")");
+        Echo("Power readiness: SATISFIED");
+        return;
+    }
+
+    string source =
+        status.HasDeclaredThreshold
+            ? "declared"
+            : "default";
+
+    Echo("Power state: " +
+        status.FillPercent.ToString("F2") + "%");
+
+    Echo("Power requirement: " +
+        status.ThresholdPercent.ToString("F1") +
+        "% (" + source + ")");
+
+    Echo("Power readiness: " +
+        (status.IsReady ? "SATISFIED" : "NOT SATISFIED"));
 }
 
 void LoadConfiguration()
