@@ -3250,3 +3250,1628 @@ Final set of observations were successful. The automated drone docked at one sta
 | III.| Provided  | Established |
 
 _Proof = Id of Proof, Evidence = [provided,insufficient,denied], Verdict = [Established, More Observations required, Not Established]_
+
+## Session 010 Explore power-readiness evidence for Opportunity O-004
+
+Date: 8/6/26
+Game version: 1.210.012 b0
+
+### Opportunity O-004 Ensure that the grid's power is charged before disconnecting
+(See DockHand_Opportunities.md)
+
+### Canonical Proof(s)
+
+I. Prove that DockHand releases a Managed Grid only when its cargo requirement and applicable power requirement are satisfied.
+
+II. Prove that the absence of applicable power storage on a Managed Grid is treated as meeting the power requirement.
+
+### Observable Evidence
+
+For Canonical Proof I:
+
+1. A Managed Grid failing to meet the power requirement docks.
+2. The Managed Grid satisfies the cargo requirement.
+3. The Managed Grid is not released.
+4. The Managed Grid subsequently meets the power requirement.
+5. The Managed Grid is released.
+
+Contrast:
+
+6. A Managed Grid meeting the power requirement docks.
+7. The Managed Grid satisfies the cargo requirement.
+8. The Managed Grid is released.
+
+For Canonical Proof II:
+
+9. A Managed Grid with no applicable power storage docks.
+10. The Managed Grid satisfies the cargo requirement.
+11. The Managed Grid is released.
+
+
+### Investigation 010-001 (Capability)
+
+What power-storage information about a connected Managed Grid is available to DockHand?
+
+#### Purpose
+
+Determine what information available through the Programmable Block API could allow DockHand to distinguish:
+
+- a connected Managed Grid that has applicable power storage,
+- the stored-power condition of that grid, and
+- a connected Managed Grid that has no applicable power storage.
+
+This Investigation is exploratory. It does not select a definition of
+"sufficient power," a charging threshold, participating power-storage
+blocks, or a configuration mechanism.
+
+#### Hypothesis
+
+Once a Managed Connector is connected, the station Programmable Block
+can discover power-storage blocks belonging to the connected Managed
+Grid and obtain information sufficient to characterize their stored-power
+condition.
+
+A Managed Grid having no applicable power storage can also be
+distinguished from one having applicable power storage.
+
+#### Environment
+
+1. A DockHand development world.
+2. A station containing a correctly configured DockHand-managed connector.
+3. A Programmable Block on the station grid capable of running temporary investigative code if required.
+4. A Managed Grid containing one or more power-storage blocks.
+5. A Managed Grid containing no power-storage blocks. An existing gooseEgg container may serve this purpose.
+6. Means to inspect the relevant blocks and values independently in-game so observations from the Programmable Block can be compared with the game's visible state.
+
+#### Starting Conditions
+
+1. Begin with DockHand in `WaitingForContainer`.
+2. Ensure that normal DockHand release behavior cannot interfere with observations before they are gathered.
+3. Prepare the powered Managed Grid with a known, visibly non-full stored-power condition.
+4. Keep the no-power-storage Managed Grid available for a separate pass.
+
+#### Procedure
+
+Pass A — Managed Grid with power storage
+
+1. Dock the Managed Grid containing power storage.
+2. From the station Programmable Block, investigate which power-storage blocks become discoverable after connection.
+3. Determine whether discovered power-storage blocks can be attributed to the Managed Grid rather than the station grid.
+4. Inspect what stored-power information is available for those blocks.
+5. Compare PB-obtainable values with independently observable in-game values.
+6. Allow or cause the Managed Grid's stored power to change while it remains connected.
+7. Determine whether the PB-obtainable values change correspondingly.
+8. Record the information that is available and any relevant limitations or ambiguities.
+
+Pass B — Managed Grid without power storage
+
+9. Dock a Managed Grid containing no power-storage blocks.
+10. Repeat discovery from the station Programmable Block.
+11. Determine whether the absence of applicable power storage can be distinguished from:
+    - failure to discover the connected Managed Grid,
+    - failure to access its blocks, or
+    - some other error or ambiguous condition.
+12. Record the observed result.
+
+#### Evidence Sought
+
+1. Power-storage blocks on the connected Managed Grid are discoverable from the station Programmable Block.
+2. Power-storage blocks belonging to the Managed Grid can be distinguished from power-storage blocks belonging to the station.
+3. PB-accessible information describes the stored-power condition of the Managed Grid's power storage.
+4. The observed stored-power information changes when the Managed Grid's stored power changes.
+5. PB-observed stored-power information can be reconciled with an independently observable in-game power condition.
+6. A Managed Grid having no applicable power storage produces an observable condition distinguishable from a discovery/access failure.
+7. The observations provide enough information to determine what questions must next be answered before "meeting the power requirement" can be defined.
+
+#### Observations
+
+1. Provided. ![PB Echo() content](Images/010-001-PB-EchoData.jpg)
+2. Provided.
+3. Provided.
+4. Unable to test. Station power prevented battery discharge.
+5. Provided. Disconneted grid queried. Stored Power value matches.
+6. Provided. The "Grid Blocks" will not show a power storage. ![PB Echo() content](Images/010-001-PB-EchoData-NoPwrStorage.jpg)
+7. Inconclusive. The absence of a power storage block may require a "whitelist" of in-game block that provide power storge.
+
+#### Conclusion
+
+Supported with one remaining uncertainty: A station Programmable Block can discover power-storage blocks on the connected Managed Grid, distinguish them from station blocks, and obtain stored-power information that corresponds to independently observable in-game values. A Managed Grid on which no such blocks are discovered produces a distinguishable observable condition. However, the Investigation does not establish which block types constitute applicable power storage, and therefore does not yet establish the rule by which DockHand should determine that a Managed Grid has no applicable power storage.
+
+#### Design Impact
+
+A definition of applicable power storage is required before DockHand can reliably determine either power readiness or that the power requirement does not apply. How applicable power storage is identified remains undecided.
+
+### Investigation 010-002 (Capability)
+
+Can the Programmable Block API intrinsically identify blocks that constitute applicable electrical power storage?
+
+#### Purpose
+
+Determine whether metadata available through the Programmable Block API
+provides a reliable means of identifying electrical power-storage blocks
+on a connected Managed Grid without DockHand maintaining knowledge of
+individual block definitions.
+
+Investigate three candidate classification mechanisms:
+
+1. `IMyBatteryBlock`
+2. `IMyPowerProducer`
+3. `BlockDefinition`
+
+This Investigation concerns identification of applicable electrical
+power storage only. It does not define "sufficiently charged," select a
+charging threshold, or consider non-electrical energy or fuel systems.
+
+#### Hypothesis
+
+The Programmable Block API exposes intrinsic type or definition metadata
+sufficient to distinguish electrical power-storage blocks from other
+blocks on a Managed Grid.
+
+In particular, `IMyBatteryBlock` may provide a semantic classification
+analogous to DockHand's existing use of `IMyCargoContainer` for cargo
+storage, making a maintained list of individual battery block
+definitions unnecessary.
+
+#### Environment
+
+1. A DockHand development world.
+2. A station containing a Programmable Block capable of running a
+   temporary investigative probe.
+3. A Managed Grid containing at least one known battery block.
+4. Where readily available, the test environment should also contain
+   electrical power-producing blocks that do not store electrical power
+   so that `IMyPowerProducer` can be tested for over-inclusion.
+5. A Managed Grid containing no electrical power-storage blocks may be
+   used as a negative-control pass.
+6. The in-game terminal will be used to independently identify the
+   actual blocks present on each investigated grid.
+
+#### Starting Conditions
+
+1. Install the temporary power-storage classification probe in the
+   station Programmable Block.
+2. Ensure the Managed Grid under investigation can be connected to the
+   station.
+3. Independently inspect the Managed Grid in the in-game terminal and
+   record the blocks known to store electrical power.
+4. If available, identify any blocks on the Managed Grid that produce
+   electrical power but do not store it.
+
+#### Procedure
+
+Pass A — Grid containing electrical power storage
+
+1. Connect a Managed Grid containing at least one known battery block.
+2. Run the classification probe against the connected Managed Grid.
+3. Record every block identified as `IMyBatteryBlock`.
+4. Record every block identified as `IMyPowerProducer`.
+5. Record the `BlockDefinition` metadata for the investigated blocks.
+6. Compare the probe results with the independently observed block
+   population in the in-game terminal.
+7. Determine whether each candidate classification mechanism:
+   - identifies all known electrical power-storage blocks,
+   - excludes blocks that do not store electrical power, and
+   - requires knowledge of individual block definitions.
+
+Pass B — Power producer without electrical storage
+
+8. If the test environment contains a block that produces electrical
+   power but does not store it, run the probe against a grid containing
+   that block.
+9. Determine whether the block is identified as `IMyPowerProducer`.
+10. Determine whether it is identified as `IMyBatteryBlock`.
+11. Record its `BlockDefinition` metadata.
+12. Record whether the results distinguish power production from power
+    storage.
+
+Pass C — Grid without electrical power storage
+
+13. Connect a Managed Grid known to contain no electrical power-storage
+    blocks.
+14. Run the classification probe.
+15. Determine whether `IMyBatteryBlock` returns zero blocks.
+16. Record any `IMyPowerProducer` results.
+17. Record whether the result is consistent with the independently
+    observed grid contents.
+
+#### Evidence Sought
+
+1. `IMyBatteryBlock` identifies every known electrical power-storage
+   block observed on the investigated Managed Grid.
+2. `IMyBatteryBlock` does not identify investigated blocks that do not
+   store electrical power.
+3. `IMyPowerProducer` either distinguishes electrical power storage
+   adequately or is shown to include non-storage power producers.
+4. `BlockDefinition` provides stable block-definition identity metadata
+   but can be evaluated for whether its use would require DockHand to
+   maintain knowledge of individual block definitions.
+5. A Managed Grid containing no electrical power-storage blocks produces
+   zero `IMyBatteryBlock` results.
+6. The observations are sufficient to determine whether DockHand can
+   intrinsically identify applicable electrical power storage without
+   maintaining a whitelist of individual block definitions.
+
+#### Observations
+
+Procedures 1-12 Done. Results:
+
+=== Investigation 010-002 Passes A and B ===
+Power-Storage Classification Probe
+
+Station connector: Lab-goosePad-Cnx
+Managed grid EntityId: 137546373343988248
+Terminal blocks: 10
+
+BLOCK
+Name: Lab-Piston 2
+Runtime type: MyExtendedPistonBase
+BlockDefinition: MyObjectBuilder_ExtendedPistonBase/LargePistonBase
+Definition name: Piston
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-Piston
+Runtime type: MyExtendedPistonBase
+BlockDefinition: MyObjectBuilder_ExtendedPistonBase/LargePistonBase
+Definition name: Piston
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-Probe-PB
+Runtime type: MyProgrammableBlock
+BlockDefinition: MyObjectBuilder_MyProgrammableBlock/LargeProgrammableBlock
+Definition name: Programmable Block
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-gooseEgg-TestBattery
+Runtime type: MyBatteryBlock
+BlockDefinition: MyObjectBuilder_BatteryBlock/LargeBlockBatteryBlock
+Definition name: Battery
+IMyBatteryBlock: YES
+IMyPowerProducer: YES
+CurrentStoredPower: 2.635837 MWh
+MaxStoredPower: 3.000000 MWh
+StoredPowerPercent: 87.86%
+ChargeMode: Auto
+CurrentOutput: 0.011792 MW
+MaxOutput: 12.000000 MW
+--------------------------------
+BLOCK
+Name: Sci-Fi One-Button Terminal 3
+Runtime type: MyButtonPanel
+BlockDefinition: MyObjectBuilder_ButtonPanel/LargeSciFiButtonTerminal
+Definition name: Sci-Fi One-Button Terminal
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-gooseEgg-Box Top Fore
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-gooseEgg-Box Top Aft
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-gooseEgg-Cnx
+Runtime type: MyShipConnector
+BlockDefinition: MyObjectBuilder_ShipConnector/Connector
+Definition name: Connector
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-gooseEgg-Box Bottom
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Lab-gooseEgg-Wind Turbine
+Runtime type: MyWindTurbine
+BlockDefinition: MyObjectBuilder_WindTurbine/LargeBlockWindTurbine
+Definition name: Wind Turbine
+IMyBatteryBlock: NO
+IMyPowerProducer: YES
+CurrentOutput: 0.380111 MW
+MaxOutput: 0.380097 MW
+--------------------------------
+
+SUMMARY
+Terminal blocks: 10
+IMyBatteryBlock: 1
+IMyPowerProducer: 2
+Producer but NOT battery: 1
+Battery classification: 1 found
+IMyPowerProducer includes non-battery producers.
+
+Procedures 13-17, Pass C with no power storage or generating devices complete. Results:
+
+=== Investigation 010-002 Pass C ===
+Power-Storage Classification Probe
+
+Station connector: Cnx
+Managed grid EntityId: 119863154568985183
+Terminal blocks: 4
+
+BLOCK
+Name: gooseEgg-001-Top AFt
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: gooseEgg-001-Top Fore
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: gooseEgg-001-Bottom Cnx
+Runtime type: MyShipConnector
+BlockDefinition: MyObjectBuilder_ShipConnector/Connector
+Definition name: Connector
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: gooseEgg-001-Bottom
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+
+SUMMARY
+Terminal blocks: 4
+IMyBatteryBlock: 0
+IMyPowerProducer: 0
+Producer but NOT battery: 0
+Battery classification: ZERO
+
+Procedures 13-17, Pass C with Power Generating Device only:
+
+=== Investigation 010-002 ===
+Power-Storage Classification Probe
+
+Station connector: Cnx
+Managed grid EntityId: 119863154568985183
+Terminal blocks: 5
+
+BLOCK
+Name: gooseEgg-001-Top AFt
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: gooseEgg-001-Top Fore
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: gooseEgg-001-Bottom Cnx
+Runtime type: MyShipConnector
+BlockDefinition: MyObjectBuilder_ShipConnector/Connector
+Definition name: Connector
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: gooseEgg-001-Bottom
+Runtime type: MyCargoContainer
+BlockDefinition: MyObjectBuilder_CargoContainer/LargeBlockSmallContainer
+Definition name: Small Cargo Container
+IMyBatteryBlock: NO
+IMyPowerProducer: NO
+--------------------------------
+BLOCK
+Name: Wind Turbine
+Runtime type: MyWindTurbine
+BlockDefinition: MyObjectBuilder_WindTurbine/LargeBlockWindTurbine
+Definition name: Wind Turbine
+IMyBatteryBlock: NO
+IMyPowerProducer: YES
+CurrentOutput: 0.015688 MW
+MaxOutput: 0.102994 MW
+--------------------------------
+
+SUMMARY
+Terminal blocks: 5
+IMyBatteryBlock: 0
+IMyPowerProducer: 1
+Producer but NOT battery: 1
+Battery classification: ZERO
+IMyPowerProducer includes non-battery producers.
+
+
+
+
+#### Conclusion
+
+Supported. The Programmable Block API intrinsically identifies electrical power-storage blocks through IMyBatteryBlock. In the investigated grids, a known battery implemented IMyBatteryBlock, while a non-storage electrical producer (wind turbine) did not. IMyPowerProducer is unsuitable as the storage classifier because it includes both storage and non-storage power producers. BlockDefinition provides block identity metadata but is unnecessary for classification and would require DockHand to interpret individual block definitions. A Managed Grid containing no batteries returns zero IMyBatteryBlock results even when it contains a non-storage electrical power producer.
+
+#### Design Impact
+
+For O-004, IMyBatteryBlock can serve as DockHand's intrinsic classification of applicable electrical power storage. DockHand need not maintain a whitelist of battery block definitions. A Managed Grid containing zero IMyBatteryBlock blocks can be treated as having no applicable power storage. IMyPowerProducer and BlockDefinition need not participate in that classification.
+
+---
+
+### Investigation 010-003 (Behavior)
+
+Does DockHand 1.0.9 provide the Observable Evidence required by the
+Canonical Proofs for Opportunity O-004?
+
+#### Purpose
+
+Determine which Observable Evidence required by the O-004 Canonical
+Proofs is already provided by DockHand 1.0.9 and which evidence is
+missing.
+
+This Investigation evaluates current product behavior. It does not
+design the mechanism by which DockHand will determine that a Managed
+Grid meets its power requirement.
+
+For purposes of the Investigation, the Investigator will establish and
+independently observe whether the test Managed Grid is in a condition
+that meets or fails the power requirement. This is investigative
+apparatus only and does not establish a production readiness policy.
+
+#### Canonical Proofs
+
+I. Prove that DockHand releases a Managed Grid only when its cargo
+requirement and applicable power requirement are satisfied.
+
+II. Prove that the absence of applicable power storage on a Managed Grid
+is treated as meeting the power requirement.
+
+#### Environment
+
+1. DockHand version 1.0.9.
+2. A DockHand development world.
+3. A station containing a correctly configured DockHand-managed
+   connector.
+4. A Managed Grid containing at least one `IMyBatteryBlock`.
+5. A Managed Grid containing no `IMyBatteryBlock`. An existing gooseEgg
+   container may serve this purpose.
+6. Means to independently observe the battery Fill% of the powered
+   Managed Grid.
+7. Means to establish the cargo condition required for DockHand to
+   release the Managed Grid.
+8. Means to recharge the powered Managed Grid while it remains docked,
+   if needed for Pass A.
+
+#### Starting Conditions
+
+1. Restore the station Programmable Block to unmodified DockHand 1.0.9
+   product code. Do not use the temporary Investigation probes from
+   010-001 or 010-002 as the product under observation.
+2. Configure DockHand normally for the station and Managed Grid under
+   investigation.
+3. Establish an investigator-selected battery Fill% that will represent
+   "fails the power requirement" for Pass A.
+4. Establish an investigator-selected battery Fill% that will represent
+   "meets the power requirement" for Pass B.
+5. These percentages are test conditions only. They do not define the
+   eventual DockHand power-readiness policy.
+
+#### Procedure
+
+##### Pass A — Power requirement not met
+
+1. Prepare the powered Managed Grid at a battery Fill% that the
+   Investigator has designated as failing the power requirement.
+2. Independently observe and record the battery Fill%.
+3. Dock the Managed Grid.
+4. Cause the Managed Grid to satisfy DockHand's cargo requirement.
+5. Observe whether DockHand releases the Managed Grid.
+6. If the Managed Grid remains docked, allow its batteries to charge
+   until the Investigator-designated power requirement is met.
+7. Observe whether DockHand then releases the Managed Grid.
+8. Record each required Observable Evidence item as Provided or Missing.
+
+##### Pass B — Power requirement already met
+
+9. Prepare the powered Managed Grid at a battery Fill% that the
+   Investigator has designated as meeting the power requirement.
+10. Independently observe and record the battery Fill%.
+11. Dock the Managed Grid.
+12. Cause the Managed Grid to satisfy DockHand's cargo requirement.
+13. Observe whether DockHand releases the Managed Grid.
+14. Record each required Observable Evidence item as Provided or Missing.
+
+##### Pass C — No applicable power storage
+
+15. Prepare a Managed Grid containing no `IMyBatteryBlock`.
+16. Dock the Managed Grid.
+17. Cause the Managed Grid to satisfy DockHand's cargo requirement.
+18. Observe whether DockHand releases the Managed Grid.
+19. Record each required Observable Evidence item as Provided or Missing.
+
+#### Evidence Sought
+
+##### Canonical Proof I — Power requirement not met
+
+1. A Managed Grid failing to meet the power requirement docks.
+2. The Managed Grid satisfies the cargo requirement.
+3. The Managed Grid is not released.
+4. The Managed Grid subsequently meets the power requirement.
+5. The Managed Grid is released.
+
+##### Canonical Proof I — Power requirement already met
+
+6. A Managed Grid meeting the power requirement docks.
+7. The Managed Grid satisfies the cargo requirement.
+8. The Managed Grid is released.
+
+##### Canonical Proof II — No applicable power storage
+
+9. A Managed Grid with no applicable power storage docks.
+10. The Managed Grid satisfies the cargo requirement.
+11. The Managed Grid is released.
+
+#### Observations
+
+Pass A:
+1. Fill% chosen is 50%. 
+2. Test grid battery is 29%. 
+3. Done.
+4. Cargo Fill% reached.
+5. DockHand released the grid.
+6. N/A
+7. N/A
+8. Done.
+Pass B:
+9. Fill% chosen is 29%
+10. Test grid batter is 29%
+11. Done.
+12. Cargo Fill% reached.
+13. DockHand released the grid.
+14. Done.
+Pass C:
+15. Done.
+16. Done.
+17. Done.
+18. DockHand releases the grid.
+19. Done.
+
+
+#### Evidence Accounting
+
+For each Evidence Sought item, record:
+
+- **Provided** — the required Observable Evidence was observed in
+  DockHand 1.0.9.
+- **Missing** — the required Observable Evidence was not observed in
+  DockHand 1.0.9.
+- **Not Observed** — the Investigation did not create or sustain the
+  conditions necessary to make a determination.
+
+A Missing result is not an Investigation failure. It identifies
+Observable Evidence that the current product does not provide and may
+therefore constitute part of the product gap to be carried forward from
+Analysis.
+
+
+| Proof | Evidence | Verdict |
+|---|---|---|
+| I. |   Missing  | Not Established  |
+| II. | Provided  | Established  |
+
+#### Conclusion
+
+Canonical Proof I is Not Established. When a Managed Grid failed the investigator-established power requirement but satisfied its cargo requirement, DockHand 1.0.9 released the grid. The required evidence that DockHand withholds release while the power requirement is unmet is therefore Missing. Because the grid was released, the subsequent transition from insufficient to sufficient power could not be observed. The power-already-sufficient path did provide the required evidence.
+
+Canonical Proof II is Established. A Managed Grid containing no applicable power storage was released after satisfying its cargo requirement, providing all required Observable Evidence for that Proof.
+
+#### Design Impact
+
+The design must provide the presently missing evidence required by Canonical Proof I: when a Managed Grid has applicable power storage and its power requirement is not met, satisfying the cargo requirement alone must not cause release. Once both requirements are satisfied, release must be permitted. The design must preserve the currently provided behavior for a Managed Grid having no applicable power storage.
+
+---
+
+### Investigation 010-004 (Implementation Obligations)
+
+Can an acceptable implementation of Candidate #16 satisfy the
+implementation obligations identified during O-004 design?
+
+#### Purpose
+
+Establish the test-first proof obligations for the O-004 realization
+before modifying DockHand production code.
+
+This Investigation translates the four D-shaped implementation
+obligations identified during design into observable proof conditions
+that an acceptable implementation must satisfy.
+
+For O-004, this Investigation concerns **power-readiness fulfillment**.
+The existing cargo-service behavior remains an existing service
+condition and regression concern; this Investigation does not introduce
+or preserve the former station-owned cargo Fill Threshold as an O-004
+requirement.
+
+The Investigator will use the existing DockHand service behavior as the
+baseline and will observe whether the candidate implementation produces
+the behavioral changes required by the four obligations.
+
+The purpose is not to prove that a particular code structure is correct.
+The purpose is to establish what an acceptable implementation must
+demonstrably do.
+
+#### Canonical Proof(s)
+
+I. Prove that DockHand releases a Managed Grid only when its applicable
+power readiness requirements are satisfied.
+
+II. Prove that the absence of applicable power storage on a Managed Grid
+is treated as meeting the power requirement.
+
+#### Implementation Obligation(s)
+
+I. Prove that a Managed Grid can declare its applicable power-readiness
+requirement to DockHand.
+
+II. Prove that DockHand fulfills a Managed Grid's declared
+power-readiness requirement.
+
+III. Prove that existing service behavior remains unchanged except
+where a change is required to fulfill the Managed Grid's declared
+power-readiness requirement.
+
+IV. Prove that a Managed Grid that does not declare a power-readiness
+requirement can still complete service using the station's default
+power-fulfillment requirement.
+
+#### Environment
+
+1. A DockHand development world containing a correctly configured
+   DockHand-managed station connector.
+
+2. The `DockHand_O004.cs` investigation candidate implementation loaded
+   into the station Programmable Block.
+
+3. A Managed Grid containing at least one `IMyBatteryBlock`.
+
+4. A Managed Grid containing no `IMyBatteryBlock`.
+
+5. A participating Managed Grid connector whose Custom Data can be
+   configured for the O-004 power-readiness declaration.
+
+6. Means to independently observe the Managed Grid's aggregate stored
+   power and aggregate maximum storage capacity.
+
+7. Means to independently observe whether the Managed Grid's declared
+   power-readiness requirement has been satisfied.
+
+8. The existing cargo-service path required for DockHand to reach its
+   release condition.
+
+9. The established DockHand 1.0.9 behavior available as the comparison
+   baseline for Pass E.
+
+#### Starting Conditions
+
+1. Load `DockHand_O004.cs` into the station Programmable Block editor.
+
+2. Run **Check Code** and confirm that the investigation candidate
+   compiles before beginning behavioral observations.
+
+3. Configure the station normally for the test Managed Grid.
+
+4. Confirm that the Managed Grid participates through its configured
+   connector.
+
+5. Establish the power-readiness declaration format to be exercised by
+   the candidate implementation.
+
+6. Establish a declared power-readiness threshold within the permitted
+   range of 1% through 99%.
+
+7. Establish a test condition in which the Managed Grid is below its
+   declared power-readiness threshold.
+
+8. Establish a test condition in which the Managed Grid meets or
+   exceeds its declared power-readiness threshold.
+
+9. Establish a Managed Grid with no applicable power storage for the
+   default-behavior test.
+
+10. Preserve the existing cargo-service behavior so that cargo
+    processing can be completed without introducing a new cargo-fill
+    requirement into O-004.
+
+#### Procedure
+
+##### Pass A — Managed Grid declares a power-readiness requirement
+
+1. Configure the Managed Grid's participating connector with a valid
+   power-readiness declaration.
+
+2. Dock the Managed Grid.
+
+3. Observe whether DockHand obtains the declared requirement from the
+   Managed Grid.
+
+4. Independently observe the Managed Grid's aggregate stored power and
+   aggregate maximum storage capacity.
+
+5. Determine the Managed Grid's observed power-readiness percentage.
+
+6. Record whether DockHand recognizes the declared requirement and uses
+   it when determining service completion.
+
+...
+
+#### Observations
+
+Pass A:
+
+1. Done
+2. Unverifable
+3. Unverifable
+Investigaton aborted.
+
+
+#### Conclusion
+
+This investigation was aborted early in Pass A because the investigator could not inspect the requsted information.
+
+---
+
+### Investigation 010-005 (O-004 Power Readiness)
+
+Can an acceptable implementation of Candidate #16 satisfy the
+canonical proofs and implementation obligations identified during
+O-004 design?
+
+#### Purpose
+
+Establish whether an acceptable implementation of Candidate #16 can
+provide the required power-readiness behavior for a Managed Grid.
+
+For O-004, this Investigation concerns power-readiness fulfillment.
+The existing cargo-service behavior remains an existing service
+condition and regression concern; this Investigation does not introduce
+or preserve the former station-owned cargo Fill Threshold as an O-004
+requirement.
+
+The Investigator will use `DockHand_O004.cs` as the implementation
+under investigation.
+
+The purpose is not to prove that a particular code structure is correct.
+The purpose is to establish whether the candidate implementation
+provides the observable behavior required by the Canonical Proofs and
+Implementation Obligations.
+
+#### Canonical Proof(s)
+
+I. Prove that DockHand releases a Managed Grid only when its applicable
+power-readiness requirements are satisfied.
+
+II. Prove that the absence of applicable power storage on a Managed Grid
+is treated as meeting the power requirement.
+
+#### Implementation Obligation(s)
+
+I. A Managed Grid can declare its applicable power-readiness requirement
+to DockHand.
+
+II. DockHand fulfills the Managed Grid's declared power-readiness
+requirement.
+
+III. Existing service behavior remains unchanged except where a change
+is required to fulfill the Managed Grid's declared power-readiness
+requirement.
+
+IV. A Managed Grid that does not declare a power-readiness requirement
+can still complete service using the station's default power-fulfillment
+requirement.
+
+V. DockHand passively displays the effective fulfillment requirement and
+the applicable current state used to evaluate that requirement to the
+investigator / player.
+
+#### Environment
+
+1. A Space Engineers development world containing a correctly configured
+   DockHand-managed station connector.
+
+2. `DockHand_O004.cs` loaded into the station Programmable Block.
+
+3. A Managed Grid containing at least one `IMyBatteryBlock`.
+
+4. A Managed Grid containing no `IMyBatteryBlock`.
+
+5. A participating Managed Grid connector whose Custom Data can be
+   configured with the O-004 power-readiness declaration.
+
+6. Means to establish and observe the Managed Grid's aggregate battery
+   state.
+
+7. Means to establish the cargo condition required for DockHand to
+   reach its release decision.
+
+8. Means to recharge the powered Managed Grid while it remains docked,
+   if required by the test.
+
+#### Starting Conditions
+
+1. Load `DockHand_O004.cs` into the station Programmable Block editor.
+
+2. Run **Check Code** and confirm that the investigation candidate
+   compiles before beginning behavioral observations.
+
+3. Configure the station normally for the Managed Grid under
+   investigation.
+
+4. Configure the Managed Grid's participating connector as a
+   participating connector.
+
+5. For tests requiring a declared power-readiness requirement,
+   configure a valid `PowerThreshold` within the candidate's permitted
+   range.
+
+6. Confirm that DockHand's terminal display provides the effective
+   power-readiness requirement and the applicable current power state
+   without requiring the investigator to inspect or infer DockHand's
+   internal state.
+
+#### Procedure
+
+##### Pass A — Declared power requirement not met
+
+1. Configure the Managed Grid with a declared power-readiness
+   requirement.
+
+2. Establish the Managed Grid below its declared power-readiness
+   requirement.
+
+3. Observe and record the power-readiness requirement and current power
+   state displayed by DockHand.
+
+4. Dock the Managed Grid.
+
+5. Cause the Managed Grid to satisfy the existing cargo-service
+   condition required for release.
+
+6. Observe whether DockHand releases the Managed Grid.
+
+7. If the Managed Grid remains docked, recharge it until the displayed
+   current power state reaches or exceeds the displayed requirement.
+
+8. Observe whether DockHand then permits release.
+
+9. Record each required Observable Evidence item as Provided, Missing,
+   or Not Observed.
+
+##### Pass B — Declared power requirement already met
+
+10. Configure the Managed Grid with a declared power-readiness
+    requirement.
+
+11. Establish the Managed Grid at or above its declared
+    power-readiness requirement.
+
+12. Observe and record the power-readiness requirement and current power
+    state displayed by DockHand.
+
+13. Dock the Managed Grid.
+
+14. Cause the Managed Grid to satisfy the existing cargo-service
+    condition required for release.
+
+15. Observe whether DockHand releases the Managed Grid.
+
+16. Record each required Observable Evidence item as Provided, Missing,
+    or Not Observed.
+
+##### Pass C — No declared power requirement
+
+17. Configure the participating Managed Grid without a declared
+    power-readiness requirement.
+
+18. Observe the effective power-readiness requirement displayed by
+    DockHand.
+
+19. Dock the Managed Grid.
+
+20. Cause the Managed Grid to satisfy the existing cargo-service
+    condition required for release.
+
+21. Observe whether DockHand completes service and releases the
+    Managed Grid.
+
+22. Record each required Observable Evidence item as Provided, Missing,
+    or Not Observed.
+
+##### Pass D — No applicable power storage
+
+23. Prepare a participating Managed Grid containing no applicable
+    electrical power-storage blocks.
+
+24. Observe the effective power-readiness requirement and applicable
+    current power state displayed by DockHand.
+
+25. Dock the Managed Grid.
+
+26. Cause the Managed Grid to satisfy the existing cargo-service
+    condition required for release.
+
+27. Observe whether DockHand completes service and releases the
+    Managed Grid.
+
+28. Record each required Observable Evidence item as Provided, Missing,
+    or Not Observed.
+
+##### Pass E — Existing service behavior
+
+29. Execute an existing nominal cargo-service cycle using a Managed
+    Grid whose applicable power-readiness requirement is already
+    satisfied.
+
+30. Observe connector processing, cargo processing, and release
+    behavior.
+
+31. Compare the observed behavior with the established pre-O-004
+    behavior.
+
+32. Record any behavioral difference.
+
+#### Evidence Sought
+
+##### Canonical Proof I — Power-readiness requirement governs release
+
+1. A participating Managed Grid with a declared power-readiness
+   requirement displays that effective requirement to the investigator.
+
+2. The current power state displayed by DockHand corresponds to the
+   applicable power state used by DockHand when evaluating readiness.
+
+3. A Managed Grid whose displayed current power state is below its
+   displayed requirement can complete the existing cargo-service
+   condition without being released.
+
+4. The Managed Grid remains connected while its displayed current power
+   state is below its displayed requirement.
+
+5. When the displayed current power state reaches or exceeds the
+   displayed requirement, DockHand permits release.
+
+6. A Managed Grid whose displayed current power state already meets or
+   exceeds its displayed requirement can complete service and be
+   released.
+
+##### Canonical Proof II — Absence of applicable power storage
+
+7. A Managed Grid with no applicable electrical power storage is
+   identified by DockHand as having no applicable stored-power state
+   preventing service.
+
+8. The effective power-readiness requirement and applicable current
+   power state are observable to the investigator.
+
+9. The Managed Grid can complete service and be released without
+   applicable power storage preventing release.
+
+##### Implementation Obligation III — Existing service behavior
+
+10. Existing connector participation behavior remains unchanged.
+
+11. Existing cargo-service behavior remains unchanged.
+
+12. A Managed Grid whose applicable power requirement is already
+    satisfied follows the existing service path to release.
+
+13. No new power-readiness condition prevents service when the applicable
+    power requirement is already satisfied.
+
+##### Implementation Obligation IV — Default fulfillment behavior
+
+14. A Managed Grid with no declared power-readiness requirement can
+    still complete service.
+
+15. The effective default power-fulfillment requirement is observable
+    to the investigator.
+
+16. The effective default requirement is applied when no Managed Grid
+    requirement is declared.
+
+##### Implementation Obligation V — Testability / passive observability
+
+17. DockHand passively displays the effective fulfillment requirement
+    used for the Managed Grid.
+
+18. DockHand passively displays the applicable current state used to
+    evaluate that requirement.
+
+19. The displayed requirement and current state can be observed by the
+    investigator without inspecting DockHand's internal variables or
+    reproducing DockHand's calculations independently.
+
+20. The displayed information remains available while the Managed Grid
+    is being evaluated for service and release.
+
+#### Observations
+
+Pass A:
+
+1. Done
+2. Done.
+3. Done.
+4. Done.
+5. Done.
+6. Did not release. Cargo fill% not met. Correct behavior.
+7. Done.
+8. Cargo fill% and power fill% both met. Managed grid released. Correct behavior.
+9. Done.
+
+Pass B:
+
+10. - 16. Observed correct behavior.
+
+Pass C:
+
+17. Done.
+18. Done.
+19. Done.
+20. - 21. I chose to stop this pass after confirming that the default charge % was correctly set to 99% to avoid waste. Charging the battery to 99% would require grinding it and loosing the power cells to reset for future testing. Pass A already confirmed that this version of DockHand correctly processed the grid release once the threshold had been met.
+
+Pass D:
+
+23. Done.
+24. Done.
+25. Done.
+26. Done.
+27. Done.
+28. Product provided evidence of expected behavior.
+
+Pass E:
+
+29. Done.
+30. Done.
+31. Done.
+32. Product provided evidence of expected behavior.
+
+#### Evidence Accounting
+
+For each Evidence Sought item, record:
+
+- **Provided** — the required Observable Evidence was observed in the
+  candidate DockHand implementation.
+
+- **Missing** — the required Observable Evidence was not observed in the
+  candidate DockHand implementation.
+
+- **Not Observed** — the Investigation did not create or sustain the
+  conditions necessary to make a determination.
+
+A Missing result identifies an implementation obligation that the
+candidate implementation does not presently satisfy. It does not by
+itself establish that the overall O-004 Opportunity has failed.
+
+#### Verdict
+
+| Proof | Evidence | Verdict |
+|---|---|---|
+| I. | Provided | Established |
+| II. | Provided | Established |
+
+_Proof = Id of Canonical Proof; Evidence = [Provided, Missing,
+Not Observed]; Verdict = [Established, More Observations Required,
+Not Established]_
+
+#### Conclusion
+
+
+This Investigation has established the evidence of an acceptable implementation of the O-004 candidate and satisfied
+the Canonical Proofs and associated implementation obligations.
+
+---
+
+### Investigation 010-006 (O-004 Delta Verification)
+
+Do the implementation deltas between DockHand v1.0.9 and
+DockHand v1.1.0 provide the behavior required by the O-004 Canonical
+Proofs while preserving the relevant pre-existing DockHand behavior?
+
+#### Purpose
+
+Establish whether the specific implementation changes introduced in
+DockHand v1.1.0 provide the O-004 power-readiness behavior established
+by Investigation 010-005 without introducing an unintended change to
+the existing DockHand service behavior.
+
+This is a delta investigation.
+
+Investigation 010-005 already established the O-004 candidate behavior
+against the Canonical Proofs. This Investigation therefore does not
+repeat that investigation in full.
+
+Instead, it isolates the changes between the established DockHand
+v1.0.9 implementation and DockHand v1.1.0 and determines whether those
+changes:
+
+- prevent release when an applicable power-readiness requirement is not
+  satisfied;
+- permit release when that requirement is satisfied;
+- prevent release when power readiness is lost during the disconnect
+  delay;
+- treat absence of applicable power storage as satisfying the power
+  requirement; and
+- preserve the relevant existing DockHand behavior.
+
+The v1.0.9 implementation is the comparison baseline.
+
+The Investigator will use DockHand v1.1.0 as the implementation under
+investigation.
+
+The purpose is not to prove that a particular code structure is correct.
+The purpose is to establish whether the observable behavior introduced
+by the deltas satisfies the O-004 Canonical Proofs.
+
+#### Delta Under Investigation
+
+The substantive O-004 deltas are:
+
+1. Addition of the WaitingForPower state.
+
+2. Evaluation of Managed Grid power readiness before entering
+   DisconnectPending.
+
+3. Re-evaluation of power while WaitingForPower.
+
+4. Re-evaluation of power during DisconnectPending.
+
+5. Return to WaitingForPower if power readiness is lost during the
+   disconnect-delay period.
+
+6. Reading a Managed Grid power-readiness declaration from the
+   participating connector's [StationCargoController] Custom Data.
+
+7. Use of PowerThreshold= as the candidate declaration.
+
+8. Use of a 99% default power threshold when no threshold is declared.
+
+9. Restriction of declared power thresholds to 1% through 99%.
+
+10. Evaluation of aggregate battery CurrentStoredPower against aggregate
+    battery MaxStoredPower.
+
+11. Treatment of a Managed Grid with no applicable battery storage as
+    satisfying the power requirement.
+
+12. Passive Echo() reporting of the effective power requirement,
+    applicable current power state, and power-readiness result.
+
+The following existing behaviors are outside the delta under
+investigation and should be treated as regression baselines rather than
+new O-004 behavior:
+
+- connector participation;
+- ConnectWaitSeconds behavior;
+- managed connector discovery;
+- cargo Fill% calculation;
+- Load and Unload mode handling;
+- disconnect-delay timing;
+- WaitingForContainerRemoval latch behavior;
+- startup state recovery.
+
+#### Canonical Proof(s)
+
+I. Prove that DockHand releases a Managed Grid only when its applicable
+power-readiness requirements are satisfied.
+
+II. Prove that the absence of applicable power storage on a Managed Grid
+is treated as meeting the power requirement.
+
+#### Delta Implementation Obligation(s)
+
+I. The delta must prevent release when the Managed Grid's applicable
+power-readiness requirement is not satisfied.
+
+II. The delta must permit the existing release path to proceed when the
+Managed Grid's applicable power-readiness requirement is satisfied.
+
+III. The delta must re-evaluate power readiness during the
+disconnect-delay period so that loss of readiness prevents release.
+
+IV. The delta must treat a Managed Grid with no applicable battery
+storage as satisfying the power requirement.
+
+V. The delta must obtain the effective power requirement from the
+Managed Grid when a declaration is present and use the station default
+when no declaration is present.
+
+VI. The delta must expose sufficient passive power-readiness information
+for the investigator to observe the requirement and current state being
+used in the release decision.
+
+VII. Existing DockHand service behavior must remain coherent except
+where a change is required to satisfy the O-004 power-readiness
+requirement.
+
+#### Environment
+
+1. A Space Engineers development world containing a correctly
+   configured DockHand-managed station connector.
+
+2. The established DockHand v1.0.9 implementation available as the
+   comparison baseline.
+
+3. DockHand v1.1.0 loaded into the station Programmable Block.
+
+4. A participating Managed Grid containing at least one
+   IMyBatteryBlock.
+
+5. A participating Managed Grid containing no applicable
+   IMyBatteryBlock.
+
+6. A participating Managed Grid connector whose Custom Data can be
+   configured with the candidate PowerThreshold= declaration.
+
+7. Means to establish a Managed Grid battery state below a selected
+   threshold.
+
+8. Means to establish a Managed Grid battery state at or above a
+   selected threshold.
+
+9. Means to cause or observe the Managed Grid's power state changing
+   while the Managed Grid remains connected.
+
+10. The existing cargo-service path required to make the release
+    condition reachable.
+
+11. The established v1.0.9 behavior available for direct comparison.
+
+#### Starting Conditions
+
+1. Confirm that DockHand v1.0.9 is available as the comparison baseline.
+
+2. Load DockHand v1.1.0 into the station Programmable Block editor.
+
+3. Run Check Code and confirm that DockHand v1.1.0 compiles before
+   beginning behavioral observations.
+
+4. Configure the station normally.
+
+5. Confirm that the Managed Grid participates through its configured
+   connector.
+
+6. Preserve the existing cargo-service configuration used by the
+   comparison baseline.
+
+7. Prepare a battery-equipped Managed Grid whose aggregate battery
+   state can be deliberately placed below and above a selected
+   power-readiness threshold.
+
+8. Prepare a Managed Grid with no applicable battery storage.
+
+9. Do not introduce a new cargo-fill requirement into the investigation.
+   Cargo readiness is used only to place the candidate at the point
+   where its release decision can be observed.
+
+#### Procedure
+
+##### Pass A — Establish the delta's causal effect
+
+1. Load the established DockHand v1.0.9 implementation.
+
+2. Prepare a participating Managed Grid whose cargo condition is
+   sufficient for the established DockHand release path.
+
+3. Establish the Managed Grid at a power state below the candidate
+   O-004 requirement to be exercised.
+
+4. Observe the v1.0.9 release behavior.
+
+5. Record the observed baseline behavior.
+
+6. Replace the station implementation with DockHand v1.1.0 without
+   changing the relevant station or Managed Grid conditions.
+
+7. Establish the same cargo and power conditions.
+
+8. Observe whether DockHand v1.1.0 withholds release because the power
+   requirement is not satisfied.
+
+9. Observe the reported power requirement, current power state, and
+   power-readiness state.
+
+10. Raise the Managed Grid's power state to meet or exceed the effective
+    requirement.
+
+11. Observe whether DockHand v1.1.0 proceeds toward the established
+    release path.
+
+##### Pass B — Declared power-readiness requirement
+
+12. Configure the Managed Grid's participating connector with a valid
+    PowerThreshold= declaration within the permitted range.
+
+13. Establish aggregate battery power below the declared threshold.
+
+14. Confirm that the cargo condition required to reach the release
+    decision is satisfied.
+
+15. Observe the effective power requirement displayed by DockHand.
+
+16. Observe the Managed Grid's current power state as displayed by
+    DockHand.
+
+17. Observe that power readiness is reported as not satisfied.
+
+18. Observe that DockHand does not enter the release/disconnect path
+    while the requirement remains unsatisfied.
+
+19. Raise aggregate battery power to meet or exceed the declared
+    threshold.
+
+20. Observe that power readiness changes to satisfied.
+
+21. Observe that DockHand proceeds toward the existing disconnect path.
+
+##### Pass C — Loss of power readiness during disconnect delay
+
+22. Establish a valid declared power-readiness threshold.
+
+23. Establish the Managed Grid at or above that threshold.
+
+24. Satisfy the existing cargo condition.
+
+25. Observe DockHand enter DisconnectPending.
+
+26. Before the disconnect delay expires, deliberately reduce the
+    Managed Grid's aggregate power state below the effective threshold.
+
+27. Observe whether DockHand detects that power readiness is no longer
+    satisfied.
+
+28. Observe whether DockHand prevents the pending release.
+
+29. Observe whether DockHand returns to WaitingForPower.
+
+30. Restore the Managed Grid's power state to the required level.
+
+31. Observe whether DockHand again recognizes power readiness as
+    satisfied.
+
+32. Observe whether DockHand resumes the existing release path.
+
+##### Pass D — No applicable power storage
+
+33. Prepare a participating Managed Grid containing no applicable
+    battery storage.
+
+34. Satisfy the existing cargo condition required to reach release.
+
+35. Dock the Managed Grid and allow DockHand to process it.
+
+36. Observe the power-readiness information displayed by DockHand.
+
+37. Observe whether DockHand reports that no applicable power storage
+    exists.
+
+38. Observe whether DockHand treats the power requirement as satisfied.
+
+39. Observe whether DockHand proceeds through the existing release
+    path.
+
+40. Confirm that the absence of applicable power storage does not leave
+    DockHand indefinitely waiting for power.
+
+##### Pass E — Regression against v1.0.9 behavior
+
+41. Using DockHand v1.1.0, execute an established v1.0.9 service
+    scenario in which the O-004 power condition is already satisfied.
+
+42. Observe connector participation and connection behavior.
+
+43. Observe the established cargo-processing behavior.
+
+44. Observe the established disconnect-delay behavior.
+
+45. Observe the WaitingForContainerRemoval latch behavior.
+
+46. Remove the Managed Grid.
+
+47. Observe return to WaitingForContainer.
+
+48. Compare the observed behavior with the established v1.0.9
+    baseline.
+
+49. Record any behavior that differs from v1.0.9.
+
+50. Determine whether any observed difference is required by the O-004
+    delta or represents an unintended regression.
+
+#### Evidence Sought
+
+1. (I.1) Under the v1.0.9 baseline, the same test condition produces the
+   established pre-O-004 release behavior.
+
+2. (I.2) Under DockHand v1.1.0, the same condition is prevented from
+   releasing when the applicable power-readiness requirement is not
+   satisfied.
+
+3. (I.3) DockHand v1.1.0 displays the effective power requirement and
+   current power state used for the release decision.
+
+4. (I.4) When the Managed Grid reaches the applicable power-readiness
+   requirement, DockHand v1.1.0 proceeds toward the existing release
+   path.
+
+5. (I.5) A declared PowerThreshold= value is reflected in the effective
+   requirement used by DockHand.
+
+6. (I.6) A Managed Grid below its declared threshold is not released.
+
+7. (I.7) A Managed Grid at or above its declared threshold is permitted
+   to proceed toward release.
+
+8. (I.8) Loss of power readiness during DisconnectPending prevents
+   release.
+
+9. (I.9) Loss of power readiness during DisconnectPending returns
+   DockHand to WaitingForPower.
+
+10. (I.10) Restoration of power readiness permits DockHand to resume the
+    existing release path.
+
+11. (II.1) A Managed Grid with no applicable battery storage is reported
+    as having no applicable power storage.
+
+12. (II.2) A Managed Grid with no applicable battery storage is treated
+    as power-ready.
+
+13. (II.3) A Managed Grid with no applicable battery storage can complete
+    service without indefinite waiting for power.
+
+14. (III.1) Existing connector participation and connection behavior
+    remains coherent when the O-004 power condition is satisfied.
+
+15. (III.2) Existing cargo-processing behavior remains coherent when the
+    O-004 power condition is satisfied.
+
+16. (III.3) Existing disconnect-delay behavior remains coherent when the
+    O-004 power condition is satisfied.
+
+17. (III.4) Existing WaitingForContainerRemoval latch behavior remains
+    coherent when the O-004 power condition is satisfied.
+
+18. (III.5) No observed regression requires behavior outside the scope
+    of the O-004 power-readiness delta.
+
+#### Observations
+
+Pass A:
+
+1-5. Did not test. v1.0.9 behavior already established.
+6. Done.
+7. Done.
+8. Done.
+9. Done.
+10. Done.
+11. Done. Product provided evidence of expected results.
+
+Pass B:
+
+12. Done.
+13. Done.
+14. Done.
+15. Done.
+16. Done.
+17. Done.
+18. Done.
+19. Done.
+20. Done.
+21. Done. Product provided evidence of expected results.
+
+Pass C: Did not test. No means to discharge battery.
+
+22. Did not attempt.
+23. Did not attempt.
+24. Did not attempt.
+25. Did not attempt.
+26. Did not attempt.
+27. Did not attempt.
+28. Did not attempt.
+29. Did not attempt.
+30. Did not attempt.
+31. Did not attempt.
+32. Did not attempt.
+
+Pass D:
+
+33. Done.
+34. Done.
+35. Done.
+36. Done.
+37. Done.
+38. Done.
+39. Done.
+40. Done.
+
+Pass E:
+
+41. Done.
+42. Done.
+43. Done.
+44. Done.
+45. Done.
+46. Done.
+47. Done.
+48. Done. Behavior matches 1.0.0.
+49. Done. None.
+50. Done. None.
+
+#### Evidence Accounting
+
+For each Evidence Sought item, record:
+
+- **Provided** — the required Observable Evidence was observed in the
+  candidate DockHand implementation.
+
+- **Missing** — the required Observable Evidence was not observed in the
+  candidate DockHand implementation.
+
+- **Not Observed** — the Investigation did not create or sustain the
+  conditions necessary to make a determination.
+
+A Missing result identifies an implementation obligation that the
+candidate implementation does not presently satisfy. It does not by
+itself establish that the overall O-004 Opportunity has failed.
+
+The Evidence Accounting must distinguish between:
+
+- evidence produced by the new O-004 deltas;
+- evidence already established by Investigation 010-005 and reused only
+  as prior evidence; and
+- evidence concerning preservation of pre-existing v1.0.9 behavior.
+
+Do not credit an unchanged behavior to the O-004 delta merely because it
+continues to work.
+
+#### Verdict
+
+| Proof | Evidence | Verdict |
+|---|---|---|
+| I. | Provided | Established |
+| II. | Provided | Established |
+
+_Proof = Id of Canonical Proof; Evidence = [Provided, Missing,
+Not Observed]; Verdict = [Established, More Observations Required,
+Not Established]_
+
+#### Conclusion
+
+All evidence provided.
+
+This Investigation found evidence that the implementation deltas between DockHand v1.0.9 and DockHand v1.1.0 provide the O-004 power-readiness behavior required by the CanonicalProofs without introducing an unintended regression in the relevant
+existing DockHand behavior.
+
+

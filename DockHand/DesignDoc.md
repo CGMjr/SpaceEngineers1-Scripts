@@ -19,7 +19,8 @@ The automation resides entirely on the **station**, not on the transport ship ("
 * Single managed docking connector.
 * Explicit connector participation contract.
 * Support both loading and unloading stations.
-* Configuration via PB Custom Data.
+* Managed Grid power-readiness fulfillment.
+* Configuration via PB Custom Data and Managed Grid connector Custom Data.
 
 ---
 
@@ -91,14 +92,17 @@ Responsibilities:
 * Lock connector automatically.
 * Determine connector participation.
 * Monitor fill percentage.
-* Disconnect automatically.
+* Monitor Managed Grid power readiness.
+* Disconnect automatically when service requirements are fulfilled.
 * Report status.
 
 ---
 
 # Configuration
 
-Stored in PB Custom Data.
+DockHand uses two configuration locations.
+
+## Station Programmable Block Custom Data
 
 Example:
 
@@ -107,6 +111,7 @@ Example:
 Mode=Load
 Threshold=95
 DisconnectDelaySeconds=10
+ConnectWaitSeconds=1
 ConnectorName=Cnx
 ```
 
@@ -130,11 +135,41 @@ Examples:
 
 ### DisconnectDelaySeconds
 
-Wait period after threshold reached before disconnecting.
+Wait period after the service requirements are satisfied before
+disconnecting.
+
+### ConnectWaitSeconds
+
+Required continuous Connectable interval before DockHand attempts to
+connect.
 
 ### ConnectorName
 
 Exact connector name.
+
+---
+
+## Managed Grid Connector Custom Data
+
+Example:
+
+```ini
+[StationCargoController]
+Managed=true
+PowerThreshold=95
+```
+
+`Managed=true` is required for participation.
+
+`PowerThreshold` is optional and defines the minimum aggregate battery
+charge percentage required before DockHand may release the Managed Grid.
+
+Valid declared values are 1 through 99 percent.
+
+If `PowerThreshold` is omitted, DockHand uses a default requirement of
+99 percent.
+
+DockHand never modifies the Managed Grid's Custom Data.
 
 ---
 
@@ -269,7 +304,9 @@ Total Maximum Volume =
 
 # Threshold Rules
 
-## Load Mode
+## Cargo Threshold
+
+### Load Mode
 
 Complete when:
 
@@ -277,7 +314,7 @@ Complete when:
 fillPercentage >= threshold
 ```
 
-## Unload Mode
+### Unload Mode
 
 Complete when:
 
@@ -285,7 +322,75 @@ Complete when:
 fillPercentage <= threshold
 ```
 
+The cargo threshold is an existing service condition. It is distinct
+from the O-004 power-readiness threshold.
+
 ---
+
+# Power Readiness
+
+A participating Managed Grid may declare a power-readiness requirement.
+
+The Managed Grid declares the requirement; the station is responsible
+for fulfilling it.
+
+Power readiness is calculated from aggregate battery storage:
+
+```text
+Aggregate Current Stored Power
+------------------------------
+Aggregate Maximum Stored Power
+```
+
+expressed as a percentage.
+
+Power readiness is satisfied when:
+
+```text
+Power percentage >= effective PowerThreshold
+```
+
+A Managed Grid with no applicable battery storage is considered
+power-ready.
+
+The effective requirement is:
+
+* The Managed Grid's declared `PowerThreshold`, when present.
+* Otherwise, the station default of 99%.
+
+If the applicable power-readiness requirement is not satisfied, DockHand
+does not release the Managed Grid.
+
+If the requirement is satisfied, DockHand may proceed with the existing
+release process.
+
+Power readiness must remain satisfied throughout `DisconnectPending`.
+If it becomes unsatisfied during the disconnect delay, DockHand returns
+to `WaitingForPower`.
+
+DockHand reports the effective power requirement, current applicable
+power state, and readiness result through `Echo()`.
+
+---
+
+# O-004 Status
+
+**Opportunity O-004 — Ensure that the grid's power is charged before
+disconnecting — is Seized.**
+
+The Managed Grid declares its fulfillment requirement and the station is
+responsible for fulfilling it.
+
+Investigation 010-005 established the O-004 Canonical Proofs for the
+candidate implementation.
+
+Investigation 010-006 verified the implementation delta from DockHand
+v1.0.9 to DockHand v1.1.0 and established that the O-004 behavior was
+incorporated without an unintended regression in the relevant existing
+DockHand behavior.
+
+The O-004 design is therefore part of DockHand Version 1.1.0.
+
 
 # State Machine
 
@@ -294,6 +399,7 @@ enum StationState
 {
     WaitingForContainer,
     Processing,
+    WaitingForPower,
     DisconnectPending,
     ReportAndWait,
     WaitingForContainerRemoval,
@@ -339,11 +445,43 @@ Monitor:
 
 ```text
 Container fill %
+Power readiness
 ```
 
-When threshold reached:
+When the cargo threshold is not reached, remain in Processing.
+
+When the cargo threshold is reached:
 
 ```text
+Power Ready
+    ↓ Yes
+DisconnectPending
+
+Power Ready
+    ↓ No
+WaitingForPower
+```
+
+---
+
+## WaitingForPower
+
+Purpose:
+
+Wait for the Managed Grid to satisfy its applicable power-readiness
+requirement.
+
+Actions:
+
+* Remain connected.
+* Reevaluate power readiness.
+* Report effective requirement and current power state.
+
+Transition:
+
+```text
+Power requirement satisfied
+        ↓
 DisconnectPending
 ```
 
@@ -357,7 +495,17 @@ Wait:
 DisconnectDelaySeconds
 ```
 
-Action:
+while continuing to evaluate power readiness.
+
+If power readiness becomes unsatisfied:
+
+```text
+WaitingForPower
+```
+
+The pending release is abandoned.
+
+If the delay expires while power readiness remains satisfied:
 
 ```csharp
 Disconnect()
@@ -466,6 +614,8 @@ Container Arrives
         ↓
 Connectable
         ↓
+Continuous Connect Wait
+        ↓
 Connect
         ↓
 Participation Check
@@ -474,14 +624,26 @@ Participation Check
       ↓             ↓
 Loading      Wait Removal
       ↓             ↓
-Threshold     WaitingForContainer
+Cargo Threshold
 Reached
       ↓
-Wait Delay
-      ↓
-Disconnect
-      ↓
-WaitingForContainerRemoval
+Power Ready?
+   ↙       ↘
+ No         Yes
+ ↓           ↓
+WaitingForPower
+             ↓
+       DisconnectPending
+             ↓
+       Power Still Ready?
+          ↙       ↘
+        No         Yes
+        ↓           ↓
+WaitingForPower  Wait Delay
+                    ↓
+                Disconnect
+                    ↓
+          WaitingForContainerRemoval
 ```
 
 ---
@@ -493,6 +655,8 @@ Container Arrives
         ↓
 Connectable
         ↓
+Continuous Connect Wait
+        ↓
 Connect
         ↓
 Participation Check
@@ -501,14 +665,26 @@ Participation Check
       ↓             ↓
 Unloading    Wait Removal
       ↓             ↓
-Threshold     WaitingForContainer
+Cargo Threshold
 Reached
       ↓
-Wait Delay
-      ↓
-Disconnect
-      ↓
-WaitingForContainerRemoval
+Power Ready?
+   ↙       ↘
+ No         Yes
+ ↓           ↓
+WaitingForPower
+             ↓
+       DisconnectPending
+             ↓
+       Power Still Ready?
+          ↙       ↘
+        No         Yes
+        ↓           ↓
+WaitingForPower  Wait Delay
+                    ↓
+                Disconnect
+                    ↓
+          WaitingForContainerRemoval
 ```
 
 ---
