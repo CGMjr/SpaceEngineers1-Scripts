@@ -273,3 +273,199 @@ abandonment when `Connectable` is lost, and a fresh full interval after
 The code has not yet been verified in the Space Engineers Programmable
 Block environment. Existing functionality and the O-003 obligations
 remain subject to the project's verification process.
+
+## 2026-08 Opportunity O-004 — Power Readiness
+
+Opportunity O-004 began with a simple product concern: an automated
+cargo grid should not be released from a station until it has sufficient
+power to perform its next mission.
+
+The original Opportunity also included a cargo Fill% requirement. During
+analysis, however, that apparently simple requirement exposed a much
+larger design problem.
+
+Space Engineers does not provide a simple way for DockHand to tell the
+game's automated cargo-transfer mechanisms to stop at an arbitrary fill
+percentage. Precise cargo fulfillment would require DockHand to assume
+responsibility for selecting cargo, determining how much to transfer,
+dealing with indivisible item quantities, and communicating the result
+when an exact fill percentage could not be achieved.
+
+That was a much larger product responsibility than the original
+Opportunity warranted.
+
+The resulting design discussion led to an important product decision:
+cargo fulfillment and power readiness are separate concerns. The cargo
+fulfillment problem was removed from the scope of O-004 and subsequently
+captured as separate Opportunities rather than allowing it to distort
+the design of power readiness.
+
+### Product Design Insight
+
+The purpose of variable cargo fill was reconsidered.
+
+The actual problem it was intended to solve was:
+
+> An overloaded grid may not be able to fly.
+
+The simpler product solution is for the grid designer to build the cargo
+grid with sufficient thrust and power to carry its intended maximum
+cargo load. DockHand does not need to become a cargo-allocation system
+merely because a product designer would prefer a more efficient ship.
+
+This reinforced an important responsibility boundary:
+
+> DockHand is responsible for station service requirements. The grid
+> designer is responsible for designing a grid capable of performing its
+> mission.
+
+Cargo Discrimination and Fill Threshold were therefore removed from the
+scope of O-004 and recorded as separate Opportunities.
+
+### Evidentiary Investigation
+
+The implementation was deliberately investigated before being accepted
+as a production change.
+
+Investigation 010-005 established that the O-004 candidate could satisfy
+the Canonical Proofs.
+
+The investigation established the following:
+
+1. DockHand can prevent release when the Managed Grid's power-readiness
+   requirement is not satisfied.
+2. DockHand can release the Managed Grid when the requirement is
+   satisfied.
+3. DockHand can treat a Managed Grid with no applicable power storage as
+   satisfying the power requirement.
+4. DockHand can expose the effective power requirement and current power
+   state through `Echo()`, making the behavior observable without access
+   to internal Programmable Block variables.
+
+The investigation therefore established the feasibility of the selected
+realization.
+
+### Selected Design
+
+The selected realization for O-004 is:
+
+> The Managed Grid declares its fulfillment requirements; the station is
+> responsible for fulfilling them.
+
+The Managed Grid declares its power-readiness requirement through the
+Custom Data of its participating connector.
+
+Example:
+
+```ini
+[StationCargoController]
+Managed=true
+PowerThreshold=95
+```
+
+`PowerThreshold` is optional. When absent, DockHand uses a default
+requirement of 99 percent.
+
+The requirement is fulfilled when the observed value meets or exceeds
+the declared threshold.
+
+If the requirement is not fulfilled, DockHand does not release the
+Managed Grid.
+
+A Managed Grid with no applicable power storage is considered
+power-ready.
+
+### Production Implementation
+
+The investigation candidate was not promoted directly to production.
+
+The implementation was compared with DockHand v1.0.9 to identify the
+actual implementation delta required to incorporate O-004.
+
+The resulting production candidate is DockHand v1.1.0.
+
+The substantive implementation changes include:
+
+- addition of the `WaitingForPower` state;
+- evaluation of power readiness before release;
+- continued evaluation while waiting for power;
+- continued evaluation during `DisconnectPending`;
+- abandonment of a pending release if power readiness becomes
+  unsatisfied;
+- reading `PowerThreshold` from the Managed Grid's participating
+  connector;
+- use of the 99 percent default when no declaration is present;
+- aggregate battery stored-power calculation;
+- treatment of no applicable battery storage as power-ready; and
+- passive reporting of the power requirement, current state, and
+  readiness.
+
+Existing DockHand behavior was retained where it was not affected by
+the O-004 requirement.
+
+### Verification
+
+Investigation 010-006 was created specifically to verify the delta
+between DockHand v1.0.9 and DockHand v1.1.0.
+
+This was intentionally not a second complete investigation of O-004.
+Investigation 010-005 had already established the required behavior.
+
+Investigation 010-006 instead asked whether the production
+implementation incorporated that behavior while preserving the relevant
+existing DockHand behavior.
+
+Passes A through E were completed.
+
+The Evidence Accounting established both O-004 Canonical Proofs:
+
+* Canonical Proof I — Established.
+* Canonical Proof II — Established.
+
+The investigation therefore established that the DockHand v1.1.0
+implementation satisfies the O-004 proof obligations without an
+unintended regression in the relevant existing DockHand behavior.
+
+### Design Outcome
+
+Opportunity O-004 is **Seized**.
+
+The completed work establishes the following product boundary:
+
+> The Managed Grid declares what fulfillment it requires; DockHand is
+> responsible for fulfilling that declaration before releasing the grid.
+
+DockHand does not assume responsibility for deciding what cargo should
+be loaded, how much cargo should be transferred, or how the grid should
+be designed to carry its cargo.
+
+Those concerns remain outside O-004.
+
+### Development Process Observation
+
+O-004 also provided useful evidence about the developing Evidentiary
+method.
+
+The Opportunity was proposed before its implementation feasibility was
+known.
+
+That was not a defect in the creative process.
+
+The subsequent Evidentiary work exposed the cost and feasibility of the
+original cargo-fill idea before implementation resources were committed
+to it. The idea could therefore be reconsidered as a product decision
+rather than being prematurely converted into an engineering obligation.
+
+The process allowed the product designer to propose an idea, the
+software designer to expose its consequences, and evidence to determine
+whether the resulting realization was practical.
+
+The lesson is not that product ideas must be technically feasible before
+they are proposed.
+
+The lesson is that the creative process must provide a disciplined way
+to discover feasibility and cost before an idea becomes an implementation
+commitment.
+
+O-004 is the first Opportunity in the project where that distinction has
+been particularly clear.
